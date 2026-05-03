@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -24,9 +25,8 @@ class SaleBottomSheet extends StatefulWidget {
 class _SaleBottomSheetState extends State<SaleBottomSheet>
     with SingleTickerProviderStateMixin {
   int _selectedTier = 1;
-  bool _useCustomPrice = false;
   int _quantity = 1;
-  final _priceController = TextEditingController();
+  late final TextEditingController _priceController;
   bool _isSaving = false;
   bool _showSuccess = false;
 
@@ -37,6 +37,9 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
   @override
   void initState() {
     super.initState();
+    _priceController = TextEditingController(
+      text: widget.product.uvpPrice.toStringAsFixed(2),
+    );
     _successController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -59,20 +62,13 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
   double get _purchasePrice =>
       widget.product.purchasePriceForTier(_selectedTier);
 
-  double get _salePrice {
-    if (_useCustomPrice) {
-      return double.tryParse(
-            _priceController.text.replaceAll(',', '.'),
-          ) ??
-          widget.product.uvpPrice;
-    }
-    return widget.product.uvpPrice;
-  }
+  double get _salePrice =>
+      double.tryParse(_priceController.text.replaceAll(',', '.')) ??
+      widget.product.uvpPrice;
 
   double get _unitProfit => _salePrice - _purchasePrice;
   double get _totalProfit => _unitProfit * _quantity;
-  double get _margin =>
-      _salePrice > 0 ? (_unitProfit / _salePrice) * 100 : 0;
+  double get _margin => _salePrice > 0 ? (_unitProfit / _salePrice) * 100 : 0;
   double get _revenue => _salePrice * _quantity;
 
   Future<void> _saveSale() async {
@@ -89,6 +85,9 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     setState(() => _isSaving = true);
 
     final now = DateTime.now();
+    final isUvp =
+        (_salePrice - widget.product.uvpPrice).abs() < 0.001;
+
     final sale = Sale(
       productId: widget.product.id!,
       sellerId: seller.id!,
@@ -96,7 +95,7 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
       sellerNameSnapshot: seller.name,
       purchasePriceSnapshot: _purchasePrice,
       salePriceSnapshot: _salePrice,
-      priceMode: _useCustomPrice ? 'custom' : 'uvp',
+      priceMode: isUvp ? 'uvp' : 'custom',
       purchaseTier: _selectedTier,
       quantity: _quantity,
       profit: _totalProfit,
@@ -120,16 +119,17 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
 
   @override
   Widget build(BuildContext context) {
-    if (_showSuccess) return _buildSuccess();
+    if (_showSuccess) return _buildSuccess(context);
+
+    final mq = MediaQuery.of(context);
+    final bottomPadding = mq.viewInsets.bottom + mq.viewPadding.bottom;
 
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.lightCream,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: bottomPadding),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -139,13 +139,13 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
             _buildProductHeader(),
             const Divider(height: 1, color: AppColors.divider),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildTierSelector(),
                   const SizedBox(height: 20),
-                  _buildPriceSelector(),
+                  _buildPriceSection(),
                   const SizedBox(height: 20),
                   _buildQuantitySelector(),
                   const SizedBox(height: 20),
@@ -156,7 +156,6 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
                     onPressed: _saveSale,
                     isLoading: _isSaving,
                   ),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -198,31 +197,13 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.product.category,
-                  style: AppTypography.overline,
-                ),
+                Text(widget.product.category, style: AppTypography.overline),
                 const SizedBox(height: 4),
                 Text(
                   widget.product.title,
                   style: AppTypography.titleSmall,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Text(
-                      'UVP ',
-                      style: AppTypography.bodySmall,
-                    ),
-                    Text(
-                      AppFormatters.price(widget.product.uvpPrice),
-                      style: AppTypography.titleSmall.copyWith(
-                        color: AppColors.accentBrown,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -236,7 +217,7 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(AppStrings.purchaseTier, style: AppTypography.labelLarge),
+        Text('Закупочная цена', style: AppTypography.labelLarge),
         const SizedBox(height: 10),
         Row(
           children: [1, 5, 10].map((tier) {
@@ -263,7 +244,8 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
                       borderRadius: BorderRadius.circular(14),
                       border: isSelected
                           ? null
-                          : Border.all(color: AppColors.divider, width: 0.5),
+                          : Border.all(
+                              color: AppColors.divider, width: 0.5),
                     ),
                     child: Column(
                       children: [
@@ -298,54 +280,78 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     );
   }
 
-  Widget _buildPriceSelector() {
+  Widget _buildPriceSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(AppStrings.salePrice, style: AppTypography.labelLarge),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _PriceChip(
-                label: AppStrings.useUvp,
-                sublabel: AppFormatters.price(widget.product.uvpPrice),
-                isSelected: !_useCustomPrice,
-                onTap: () => setState(() {
-                  _useCustomPrice = false;
-                  _priceController.clear();
-                }),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 20, top: 4),
+                child: Text(
+                  '€',
+                  style: GoogleFonts.inter(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w300,
+                    color: AppColors.mutedText,
+                    letterSpacing: -0.5,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _PriceChip(
-                label: AppStrings.customPrice,
-                sublabel: 'вручную',
-                isSelected: _useCustomPrice,
-                onTap: () => setState(() => _useCustomPrice = true),
+              Expanded(
+                child: TextField(
+                  controller: _priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 42,
+                    fontWeight: FontWeight.w200,
+                    color: AppColors.deepText,
+                    letterSpacing: -2,
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                  ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 20),
+            ],
+          ),
         ),
-        if (_useCustomPrice) ...[
-          const SizedBox(height: 12),
-          TextField(
-            controller: _priceController,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            style: AppTypography.titleMedium,
-            decoration: InputDecoration(
-              hintText: AppStrings.customPriceHint,
-              prefixText: '€ ',
-              prefixStyle: AppTypography.titleMedium.copyWith(
-                color: AppColors.mutedText,
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () {
+            _priceController.text =
+                widget.product.uvpPrice.toStringAsFixed(2);
+            setState(() {});
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              'UVP ${AppFormatters.price(widget.product.uvpPrice)}  ↩',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.accentBrown,
+                fontSize: 12,
               ),
             ),
           ),
-        ],
+        ),
       ],
     );
   }
@@ -360,9 +366,8 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
           children: [
             _QtyButton(
               icon: Icons.remove,
-              onTap: _quantity > 1
-                  ? () => setState(() => _quantity--)
-                  : null,
+              onTap:
+                  _quantity > 1 ? () => setState(() => _quantity--) : null,
             ),
             const SizedBox(width: 16),
             Text(
@@ -404,10 +409,9 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
             ),
           ),
           Container(
-            width: 0.5,
-            height: 36,
-            color: AppColors.success.withOpacity(0.25),
-          ),
+              width: 0.5,
+              height: 36,
+              color: AppColors.success.withOpacity(0.25)),
           Expanded(
             child: _PreviewMetric(
               label: AppStrings.purchaseCost,
@@ -415,17 +419,15 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
             ),
           ),
           Container(
-            width: 0.5,
-            height: 36,
-            color: AppColors.success.withOpacity(0.25),
-          ),
+              width: 0.5,
+              height: 36,
+              color: AppColors.success.withOpacity(0.25)),
           Expanded(
             child: _PreviewMetric(
               label: AppStrings.profitPreview,
               value: AppFormatters.price(_totalProfit),
-              valueColor: _totalProfit >= 0
-                  ? AppColors.success
-                  : AppColors.error,
+              valueColor:
+                  _totalProfit >= 0 ? AppColors.success : AppColors.error,
             ),
           ),
         ],
@@ -433,9 +435,10 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     );
   }
 
-  Widget _buildSuccess() {
+  Widget _buildSuccess(BuildContext context) {
+    final mq = MediaQuery.of(context);
     return Container(
-      height: 260,
+      height: 260 + mq.viewPadding.bottom,
       decoration: const BoxDecoration(
         color: AppColors.lightCream,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -464,80 +467,19 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
                 const SizedBox(height: 16),
                 Text(
                   AppStrings.saleSaved,
-                  style: AppTypography.titleMedium.copyWith(
-                    color: AppColors.success,
-                  ),
+                  style: AppTypography.titleMedium
+                      .copyWith(color: AppColors.success),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   AppFormatters.price(_totalProfit),
-                  style: AppTypography.kpiValue.copyWith(
-                    color: AppColors.success,
-                  ),
+                  style: AppTypography.kpiValue
+                      .copyWith(color: AppColors.success),
                 ),
-                Text(
-                  'прибыль',
-                  style: AppTypography.bodySmall,
-                ),
+                Text('прибыль', style: AppTypography.bodySmall),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PriceChip extends StatelessWidget {
-  final String label;
-  final String sublabel;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _PriceChip({
-    required this.label,
-    required this.sublabel,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.accentBrown : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: isSelected
-              ? null
-              : Border.all(color: AppColors.divider, width: 0.5),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: AppTypography.labelLarge.copyWith(
-                color: isSelected ? AppColors.lightCream : AppColors.deepText,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              sublabel,
-              style: AppTypography.bodySmall.copyWith(
-                color: isSelected
-                    ? AppColors.lightCream.withOpacity(0.75)
-                    : AppColors.mutedText,
-                fontSize: 11,
-              ),
-            ),
-          ],
         ),
       ),
     );

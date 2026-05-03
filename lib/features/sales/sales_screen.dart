@@ -279,8 +279,11 @@ class _SellerSelector extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 16, 20,
+          MediaQuery.of(ctx).viewPadding.bottom + 16,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
