@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
@@ -20,11 +21,34 @@ class ProductImageWidget extends StatelessWidget {
     this.borderRadius,
   });
 
+  bool get _isLocalFile =>
+      imageUrl != null &&
+      imageUrl!.isNotEmpty &&
+      !imageUrl!.startsWith('http');
+
+  bool get _isNetworkUrl =>
+      imageUrl != null &&
+      imageUrl!.isNotEmpty &&
+      imageUrl!.startsWith('http');
+
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(16);
 
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
+    if (_isLocalFile) {
+      return ClipRRect(
+        borderRadius: radius,
+        child: Image.file(
+          File(imageUrl!),
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(radius),
+        ),
+      );
+    }
+
+    if (_isNetworkUrl) {
       return ClipRRect(
         borderRadius: radius,
         child: Image.network(
@@ -40,6 +64,7 @@ class ProductImageWidget extends StatelessWidget {
         ),
       );
     }
+
     return _placeholder(radius);
   }
 

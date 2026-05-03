@@ -62,27 +62,15 @@ class _SalesView extends StatelessWidget {
   ) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStrings.salesTitle,
-                  style: AppTypography.displayMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Text(
-                  AppFormatters.monthKeyToDisplay(
-                    AppFormatters.toMonthKey(DateTime.now()),
-                  ),
-                  style: AppTypography.bodySmall,
-                ),
-              ],
+            Image.asset(
+              'assets/images/mave_logo.png',
+              height: 40,
+              fit: BoxFit.contain,
             ),
             _SellerSelector(
               sellers: app.sellers,

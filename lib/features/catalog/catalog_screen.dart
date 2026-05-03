@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -9,6 +11,7 @@ import '../../providers/app_provider.dart';
 import '../../data/models/product.dart';
 import '../../data/models/seller.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/product_image_widget.dart';
 import 'widgets/product_list_tile.dart';
 
 class CatalogScreen extends StatelessWidget {
@@ -129,28 +132,40 @@ class _ProductsTab extends StatelessWidget {
           );
         }
 
-        if (catalog.products.isEmpty) {
-          return Center(
-            child: Text(
-              'Нет товаров',
-              style: AppTypography.bodyMedium
-                  .copyWith(color: AppColors.mutedText),
+        return Column(
+          children: [
+            Expanded(
+              child: catalog.products.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Нет товаров',
+                        style: AppTypography.bodyMedium
+                            .copyWith(color: AppColors.mutedText),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      itemCount: catalog.products.length,
+                      itemBuilder: (context, index) {
+                        final product = catalog.products[index];
+                        return ProductListTile(
+                          product: product,
+                          onTap: () => _showEditSheet(context, product),
+                          onToggleActive: (value) =>
+                              catalog.toggleActive(product.id!, value),
+                        );
+                      },
+                    ),
             ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-          itemCount: catalog.products.length,
-          itemBuilder: (context, index) {
-            final product = catalog.products[index];
-            return ProductListTile(
-              product: product,
-              onTap: () => _showEditSheet(context, product),
-              onToggleActive: (value) =>
-                  catalog.toggleActive(product.id!, value),
-            );
-          },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              child: AppPrimaryButton(
+                label: AppStrings.addProduct,
+                onPressed: () => _showAddSheet(context),
+                icon: Icons.add,
+              ),
+            ),
+          ],
         );
       },
     );
@@ -165,6 +180,19 @@ class _ProductsTab extends StatelessWidget {
       builder: (_) => ChangeNotifierProvider.value(
         value: context.read<CatalogProvider>(),
         child: _ProductEditSheet(product: product),
+      ),
+    );
+  }
+
+  void _showAddSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: context.read<CatalogProvider>(),
+        child: const _ProductAddSheet(),
       ),
     );
   }
@@ -393,6 +421,7 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
   late final TextEditingController _p5Controller;
   late final TextEditingController _p10Controller;
   bool _isSaving = false;
+  String? _newImagePath;
 
   @override
   void initState() {
@@ -419,10 +448,24 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
   double _parse(TextEditingController c, double fallback) =>
       double.tryParse(c.text.replaceAll(',', '.')) ?? fallback;
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
+    if (file != null && mounted) {
+      setState(() => _newImagePath = file.path);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     final bottomPadding = mq.viewInsets.bottom + mq.viewPadding.bottom;
+    final currentImageUrl = _newImagePath ?? widget.product.imageUrl;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.lightCream,
@@ -455,8 +498,72 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                     .copyWith(color: AppColors.mutedText),
               ),
               const SizedBox(height: 20),
+              // Photo picker
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.divider,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (currentImageUrl != null &&
+                            currentImageUrl.isNotEmpty)
+                          _newImagePath != null
+                              ? Image.file(
+                                  File(_newImagePath!),
+                                  fit: BoxFit.cover,
+                                )
+                              : ProductImageWidget(
+                                  imageUrl: currentImageUrl,
+                                  category: widget.product.category,
+                                  title: widget.product.title,
+                                  height: 120,
+                                )
+                        else
+                          ProductImageWidget(
+                            imageUrl: null,
+                            category: widget.product.category,
+                            title: widget.product.title,
+                            height: 120,
+                          ),
+                        Container(
+                          color: Colors.black.withOpacity(0.25),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.camera_alt_outlined,
+                                  color: Colors.white, size: 28),
+                              const SizedBox(height: 6),
+                              Text(
+                                currentImageUrl != null
+                                    ? 'Изменить фото'
+                                    : 'Добавить фото',
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               _PriceField(
-                label: 'UVP цена',
+                label: 'Цена продажи',
                 controller: _uvpController,
               ),
               const SizedBox(height: 12),
@@ -488,10 +595,207 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                         _parse(_p5Controller, widget.product.purchasePrice5),
                     purchasePrice10:
                         _parse(_p10Controller, widget.product.purchasePrice10),
+                    imageUrl: _newImagePath ?? widget.product.imageUrl,
                   );
-                  await context
-                      .read<CatalogProvider>()
-                      .updateProduct(updated);
+                  await context.read<CatalogProvider>().updateProduct(updated);
+                  if (mounted) Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductAddSheet extends StatefulWidget {
+  const _ProductAddSheet();
+
+  @override
+  State<_ProductAddSheet> createState() => _ProductAddSheetState();
+}
+
+class _ProductAddSheetState extends State<_ProductAddSheet> {
+  final _titleController = TextEditingController();
+  final _uvpController = TextEditingController();
+  final _p1Controller = TextEditingController();
+  final _p5Controller = TextEditingController();
+  final _p10Controller = TextEditingController();
+  String _category = 'KOSMETIK';
+  String? _imagePath;
+  bool _isSaving = false;
+
+  static const _categories = ['KOSMETIK', 'KÖRPER', 'INSTRUMENT', 'PROFESSIONAL'];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _uvpController.dispose();
+    _p1Controller.dispose();
+    _p5Controller.dispose();
+    _p10Controller.dispose();
+    super.dispose();
+  }
+
+  double _parse(TextEditingController c) =>
+      double.tryParse(c.text.replaceAll(',', '.')) ?? 0.0;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
+    if (file != null && mounted) {
+      setState(() => _imagePath = file.path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final bottomPadding = mq.viewInsets.bottom + mq.viewPadding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.lightCream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(AppStrings.addProduct, style: AppTypography.titleMedium),
+              const SizedBox(height: 20),
+              // Photo picker
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.divider, width: 1.5),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (_imagePath != null)
+                          Image.file(File(_imagePath!), fit: BoxFit.cover)
+                        else
+                          Container(color: AppColors.surface),
+                        Container(
+                          color: Colors.black.withOpacity(
+                              _imagePath != null ? 0.25 : 0.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.camera_alt_outlined,
+                                color: _imagePath != null
+                                    ? Colors.white
+                                    : AppColors.mutedText,
+                                size: 26,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _imagePath != null
+                                    ? 'Изменить фото'
+                                    : 'Добавить фото',
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: _imagePath != null
+                                      ? Colors.white
+                                      : AppColors.mutedText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Name field
+              TextField(
+                controller: _titleController,
+                textCapitalization: TextCapitalization.sentences,
+                style: AppTypography.bodyLarge,
+                decoration: const InputDecoration(hintText: 'Название товара'),
+              ),
+              const SizedBox(height: 12),
+              // Category selector
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _category,
+                    isExpanded: true,
+                    style: AppTypography.bodyMedium,
+                    dropdownColor: AppColors.lightCream,
+                    items: _categories
+                        .map((c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(c),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _category = v);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _PriceField(label: 'Цена продажи', controller: _uvpController),
+              const SizedBox(height: 12),
+              _PriceField(label: 'Закупка 1 шт', controller: _p1Controller),
+              const SizedBox(height: 12),
+              _PriceField(label: 'Закупка 5 шт', controller: _p5Controller),
+              const SizedBox(height: 12),
+              _PriceField(label: 'Закупка 10 шт', controller: _p10Controller),
+              const SizedBox(height: 24),
+              AppPrimaryButton(
+                label: AppStrings.save,
+                isLoading: _isSaving,
+                onPressed: () async {
+                  final title = _titleController.text.trim();
+                  if (title.isEmpty) return;
+                  setState(() => _isSaving = true);
+                  final product = Product(
+                    title: title,
+                    category: _category,
+                    imageUrl: _imagePath,
+                    uvpPrice: _parse(_uvpController),
+                    purchasePrice1: _parse(_p1Controller),
+                    purchasePrice5: _parse(_p5Controller),
+                    purchasePrice10: _parse(_p10Controller),
+                  );
+                  await context.read<CatalogProvider>().addProduct(product);
                   if (mounted) Navigator.pop(context);
                 },
               ),

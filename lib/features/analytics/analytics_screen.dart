@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -34,23 +35,43 @@ class _AnalyticsView extends StatelessWidget {
         bottom: false,
         child: Consumer<AnalyticsProvider>(
           builder: (context, analytics, _) {
-            if (analytics.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.accentBrown),
-                ),
-              );
-            }
-
             return CustomScrollView(
               slivers: [
-                _buildAppBar(context, analytics),
-                _buildKpiGrid(analytics),
-                _buildChart(analytics),
-                _buildTopProducts(analytics),
-                _buildSellerStats(analytics),
-                const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                _buildHeader(context, analytics),
+                if (analytics.isLoading)
+                  const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.accentBrown),
+                      ),
+                    ),
+                  )
+                else if (analytics.availableMonths.isEmpty)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bar_chart_outlined,
+                              size: 52,
+                              color: AppColors.mutedText.withOpacity(0.4)),
+                          const SizedBox(height: 14),
+                          Text(AppStrings.noData,
+                              style: AppTypography.bodyMedium
+                                  .copyWith(color: AppColors.mutedText)),
+                        ],
+                      ),
+                    ),
+                  )
+                else ...[
+                  _buildKpiGrid(analytics),
+                  _buildChart(analytics),
+                  _buildTopProducts(analytics),
+                  _buildSellerStats(analytics),
+                  const SliverPadding(
+                      padding: EdgeInsets.only(bottom: 100)),
+                ],
               ],
             );
           },
@@ -59,39 +80,100 @@ class _AnalyticsView extends StatelessWidget {
     );
   }
 
-  SliverToBoxAdapter _buildAppBar(
+  // ── Header with month arrow navigator ────────────────────────────────────
+  SliverToBoxAdapter _buildHeader(
       BuildContext context, AnalyticsProvider analytics) {
+    final months = analytics.availableMonths;
+    final selected = analytics.selectedMonthKey;
+    final idx = months.indexOf(selected);
+    final hasPrev = idx < months.length - 1;
+    final hasNext = idx > 0;
+
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               AppStrings.analyticsTitle,
               style: AppTypography.displayMedium
                   .copyWith(fontWeight: FontWeight.w600),
             ),
-            if (analytics.availableMonths.isNotEmpty)
-              _MonthPicker(
-                months: analytics.availableMonths,
-                selected: analytics.selectedMonthKey,
-                onSelected: analytics.selectMonth,
+            if (months.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 4, horizontal: 4),
+                child: Row(
+                  children: [
+                    _NavArrow(
+                      icon: Icons.chevron_left,
+                      enabled: hasPrev,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        analytics.selectMonth(months[idx + 1]);
+                      },
+                    ),
+                    Expanded(
+                      child: Text(
+                        AppFormatters.monthKeyToDisplay(selected),
+                        style: AppTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.2,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    _NavArrow(
+                      icon: Icons.chevron_right,
+                      enabled: hasNext,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        analytics.selectMonth(months[idx - 1]);
+                      },
+                    ),
+                  ],
+                ),
               ),
+              if (months.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _MonthDots(
+                    months: months,
+                    selectedIndex: idx,
+                    onTap: (i) => analytics.selectMonth(months[i]),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
   }
 
+  // ── KPI cards ─────────────────────────────────────────────────────────────
   SliverToBoxAdapter _buildKpiGrid(AnalyticsProvider analytics) {
     final summary = analytics.summary;
-    if (summary == null) {
+    if (summary == null || summary.salesCount == 0) {
       return SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Center(
-            child: Text(AppStrings.noData, style: AppTypography.bodyMedium),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(AppStrings.noData,
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.mutedText)),
+            ),
           ),
         ),
       );
@@ -102,11 +184,11 @@ class _AnalyticsView extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
         child: Column(
           children: [
-            // Gross profit — wide card
             KpiCard(
               label: AppStrings.grossProfit,
               value: AppFormatters.price(summary.grossProfit),
-              sublabel: '${summary.salesCount} продаж · ${summary.unitsSold} единиц',
+              sublabel:
+                  '${summary.salesCount} продаж · ${summary.unitsSold} единиц',
               valueColor: AppColors.success,
               backgroundColor: AppColors.successLight,
               icon: Icons.trending_up,
@@ -160,6 +242,9 @@ class _AnalyticsView extends StatelessWidget {
   }
 
   SliverToBoxAdapter _buildChart(AnalyticsProvider analytics) {
+    if (analytics.dailyRevenue.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -179,8 +264,9 @@ class _AnalyticsView extends StatelessWidget {
   }
 
   SliverToBoxAdapter _buildTopProducts(AnalyticsProvider analytics) {
-    if (analytics.topProducts.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-
+    if (analytics.topProducts.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -206,7 +292,6 @@ class _AnalyticsView extends StatelessWidget {
     if (analytics.sellerSummaries.isEmpty) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
-
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -215,9 +300,8 @@ class _AnalyticsView extends StatelessWidget {
           children: [
             Text(AppStrings.topSellers, style: AppTypography.titleSmall),
             const SizedBox(height: 12),
-            ...analytics.sellerSummaries.map(
-              (seller) => _SellerStatTile(summary: seller),
-            ),
+            ...analytics.sellerSummaries
+                .map((s) => _SellerStatTile(summary: s)),
           ],
         ),
       ),
@@ -225,6 +309,79 @@ class _AnalyticsView extends StatelessWidget {
   }
 }
 
+// ── Month navigation arrow button ─────────────────────────────────────────
+class _NavArrow extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _NavArrow({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: enabled ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(
+          icon,
+          size: 22,
+          color: enabled ? AppColors.deepText : AppColors.divider,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Dot indicators below month navigator ─────────────────────────────────
+class _MonthDots extends StatelessWidget {
+  final List<String> months;
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+
+  const _MonthDots({
+    required this.months,
+    required this.selectedIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(months.length, (i) {
+        final isSelected = i == selectedIndex;
+        return GestureDetector(
+          onTap: () => onTap(i),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: isSelected ? 20 : 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.accentBrown
+                  : AppColors.divider,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ── Top product tile ──────────────────────────────────────────────────────
 class _TopProductTile extends StatelessWidget {
   final int rank;
   final ProductSummary summary;
@@ -239,7 +396,6 @@ class _TopProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratio = maxProfit > 0 ? (summary.totalProfit / maxProfit) : 0.0;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -248,10 +404,9 @@ class _TopProductTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
+              color: AppColors.shadowLight,
+              blurRadius: 4,
+              offset: const Offset(0, 1)),
         ],
       ),
       child: Column(
@@ -283,9 +438,8 @@ class _TopProductTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   summary.productTitle,
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.bodyMedium
+                      .copyWith(fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -310,8 +464,7 @@ class _TopProductTile extends StatelessWidget {
                     value: ratio.toDouble(),
                     backgroundColor: AppColors.surface,
                     valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.accentBrown,
-                    ),
+                        AppColors.accentBrown),
                     minHeight: 4,
                   ),
                 ),
@@ -329,6 +482,7 @@ class _TopProductTile extends StatelessWidget {
   }
 }
 
+// ── Seller stat tile ──────────────────────────────────────────────────────
 class _SellerStatTile extends StatelessWidget {
   final SellerSummary summary;
 
@@ -336,7 +490,9 @@ class _SellerStatTile extends StatelessWidget {
 
   String get _initials {
     final parts = summary.sellerName.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
     return summary.sellerName.isNotEmpty
         ? summary.sellerName[0].toUpperCase()
         : '?';
@@ -352,10 +508,9 @@ class _SellerStatTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
+              color: AppColors.shadowLight,
+              blurRadius: 4,
+              offset: const Offset(0, 1)),
         ],
       ),
       child: Row(
@@ -370,10 +525,8 @@ class _SellerStatTile extends StatelessWidget {
             child: Center(
               child: Text(
                 _initials,
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.lightCream,
-                  fontSize: 14,
-                ),
+                style: AppTypography.labelLarge
+                    .copyWith(color: AppColors.lightCream, fontSize: 14),
               ),
             ),
           ),
@@ -382,10 +535,7 @@ class _SellerStatTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  summary.sellerName,
-                  style: AppTypography.titleSmall,
-                ),
+                Text(summary.sellerName, style: AppTypography.titleSmall),
                 Text(
                   '${summary.unitsSold} шт · ${AppFormatters.price(summary.totalRevenue)} оборот',
                   style: AppTypography.bodySmall,
@@ -399,103 +549,12 @@ class _SellerStatTile extends StatelessWidget {
               Text(
                 AppFormatters.price(summary.totalProfit),
                 style: AppTypography.titleSmall.copyWith(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
+                    color: AppColors.success, fontWeight: FontWeight.w600),
               ),
-              Text(
-                'прибыль',
-                style: AppTypography.overline,
-              ),
+              Text('прибыль', style: AppTypography.overline),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MonthPicker extends StatelessWidget {
-  final List<String> months;
-  final String selected;
-  final ValueChanged<String> onSelected;
-
-  const _MonthPicker({
-    required this.months,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showPicker(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              AppFormatters.monthKeyToDisplay(selected),
-              style: AppTypography.labelLarge.copyWith(fontSize: 13),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 16, color: AppColors.mutedText),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.lightCream,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Выберите месяц', style: AppTypography.titleMedium),
-            const SizedBox(height: 12),
-            ...months.map(
-              (m) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  AppFormatters.monthKeyToDisplay(m),
-                  style: AppTypography.titleSmall,
-                ),
-                trailing: selected == m
-                    ? const Icon(Icons.check, color: AppColors.accentBrown)
-                    : null,
-                onTap: () {
-                  onSelected(m);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

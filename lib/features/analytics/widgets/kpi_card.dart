@@ -51,8 +51,7 @@ class KpiCard extends StatelessWidget {
                 child: Text(
                   label.toUpperCase(),
                   style: AppTypography.overline,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
               ),
             ],

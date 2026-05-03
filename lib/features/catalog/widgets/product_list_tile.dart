@@ -53,6 +53,7 @@ class ProductListTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
@@ -64,9 +65,18 @@ class ProductListTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppFormatters.price(product.uvpPrice),
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.accentBrown,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       product.category,
                       style: AppTypography.overline,
@@ -74,29 +84,11 @@ class ProductListTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        _PricePill(
-                          label: '1',
-                          price: product.purchasePrice1,
-                        ),
+                        _PricePill(label: '1', price: product.purchasePrice1),
                         const SizedBox(width: 4),
-                        _PricePill(
-                          label: '5',
-                          price: product.purchasePrice5,
-                        ),
+                        _PricePill(label: '5', price: product.purchasePrice5),
                         const SizedBox(width: 4),
-                        _PricePill(
-                          label: '10',
-                          price: product.purchasePrice10,
-                        ),
-                        const Spacer(),
-                        Text(
-                          'UVP ${AppFormatters.price(product.uvpPrice)}',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.accentBrown,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11,
-                          ),
-                        ),
+                        _PricePill(label: '10', price: product.purchasePrice10),
                       ],
                     ),
                   ],

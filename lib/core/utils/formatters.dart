@@ -9,12 +9,16 @@ class AppFormatters {
     decimalDigits: 2,
   );
 
-  static final _monthYear = DateFormat('MMMM yyyy', 'ru_RU');
   static final _dayMonth = DateFormat('d MMM', 'ru_RU');
-  static final _dayMonthYear = DateFormat('d MMM yyyy', 'ru_RU');
   static final _fullDateTime = DateFormat('d MMMM yyyy, HH:mm', 'ru_RU');
   static final _monthKey = DateFormat('yyyy-MM');
-  static final _dayOfMonth = DateFormat('d');
+
+  // Russian intl gives genitive case (мая, января…).
+  // Use explicit nominative forms everywhere months are shown as headings.
+  static const _nominative = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+  ];
 
   static String price(double amount) => _currency.format(amount);
 
@@ -23,11 +27,17 @@ class AppFormatters {
     return '${value.toStringAsFixed(1)}%';
   }
 
-  static String monthYear(DateTime date) => _monthYear.format(date);
+  /// "Май 2026"
+  static String monthYear(DateTime date) =>
+      '${_nominative[date.month - 1]} ${date.year}';
+
+  /// "май" — lowercase nominative for inline use
+  static String monthLower(DateTime date) =>
+      _nominative[date.month - 1].toLowerCase();
+
   static String dayMonth(DateTime date) => _dayMonth.format(date);
-  static String dayMonthYear(DateTime date) => _dayMonthYear.format(date);
+
   static String fullDateTime(DateTime date) => _fullDateTime.format(date);
-  static String dayOfMonth(DateTime date) => _dayOfMonth.format(date);
 
   static String toMonthKey(DateTime date) => _monthKey.format(date);
 
@@ -36,9 +46,8 @@ class AppFormatters {
     return DateTime(int.parse(parts[0]), int.parse(parts[1]));
   }
 
-  static String monthKeyToDisplay(String key) {
-    return monthYear(fromMonthKey(key));
-  }
+  static String monthKeyToDisplay(String key) =>
+      monthYear(fromMonthKey(key));
 
   static String compactPrice(double amount) {
     if (amount >= 1000) {

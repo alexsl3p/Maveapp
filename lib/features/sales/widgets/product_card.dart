@@ -143,35 +143,13 @@ class _CardContent extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      AppFormatters.price(product.uvpPrice),
-                      style: AppTypography.titleSmall.copyWith(
-                        color: AppColors.accentBrown,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.sageGreen.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'UVP',
-                        style: AppTypography.overline.copyWith(
-                          color: AppColors.sageGreen,
-                          fontSize: 9,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  AppFormatters.price(product.uvpPrice),
+                  style: AppTypography.titleSmall.copyWith(
+                    color: AppColors.accentBrown,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
