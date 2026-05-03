@@ -6,6 +6,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/history_provider.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/sales_provider.dart';
 import 'widgets/sale_list_item.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -163,9 +164,14 @@ class _HistoryView extends StatelessWidget {
                   (sale) => SaleListItem(
                     sale: sale,
                     onCancel: sale.isActive
-                        ? () => context
-                            .read<HistoryProvider>()
-                            .cancelSale(sale.id!)
+                        ? () async {
+                            await context
+                                .read<HistoryProvider>()
+                                .cancelSale(sale.id!);
+                            if (context.mounted) {
+                              await context.read<SalesProvider>().reload();
+                            }
+                          }
                         : null,
                   ),
                 ),
