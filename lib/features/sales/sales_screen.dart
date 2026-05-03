@@ -69,7 +69,7 @@ class _SalesView extends StatelessWidget {
           children: [
             Image.asset(
               'assets/images/mave_logo.png',
-              height: 40,
+              height: 60,
               fit: BoxFit.contain,
             ),
             _SellerSelector(
