@@ -81,16 +81,6 @@ class ProductListTile extends StatelessWidget {
                       product.category,
                       style: AppTypography.overline,
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        _PricePill(label: '1', price: product.purchasePrice1),
-                        const SizedBox(width: 4),
-                        _PricePill(label: '5', price: product.purchasePrice5),
-                        const SizedBox(width: 4),
-                        _PricePill(label: '10', price: product.purchasePrice10),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -115,24 +105,3 @@ class ProductListTile extends StatelessWidget {
   }
 }
 
-class _PricePill extends StatelessWidget {
-  final String label;
-  final double price;
-
-  const _PricePill({required this.label, required this.price});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '${label}×${AppFormatters.price(price)}',
-        style: AppTypography.overline.copyWith(fontSize: 9),
-      ),
-    );
-  }
-}

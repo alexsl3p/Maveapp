@@ -132,40 +132,28 @@ class _ProductsTab extends StatelessWidget {
           );
         }
 
-        return Column(
-          children: [
-            Expanded(
-              child: catalog.products.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Нет товаров',
-                        style: AppTypography.bodyMedium
-                            .copyWith(color: AppColors.mutedText),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      itemCount: catalog.products.length,
-                      itemBuilder: (context, index) {
-                        final product = catalog.products[index];
-                        return ProductListTile(
-                          product: product,
-                          onTap: () => _showEditSheet(context, product),
-                          onToggleActive: (value) =>
-                              catalog.toggleActive(product.id!, value),
-                        );
-                      },
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              child: AppPrimaryButton(
-                label: AppStrings.addProduct,
-                onPressed: () => _showAddSheet(context),
-                icon: Icons.add,
-              ),
-            ),
-          ],
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+          itemCount: catalog.products.length + 1,
+          itemBuilder: (context, index) {
+            if (index == catalog.products.length) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: AppPrimaryButton(
+                  label: AppStrings.addProduct,
+                  onPressed: () => _showAddSheet(context),
+                  icon: Icons.add,
+                ),
+              );
+            }
+            final product = catalog.products[index];
+            return ProductListTile(
+              product: product,
+              onTap: () => _showEditSheet(context, product),
+              onToggleActive: (value) =>
+                  catalog.toggleActive(product.id!, value),
+            );
+          },
         );
       },
     );
@@ -222,7 +210,10 @@ class _SellersTab extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              padding: EdgeInsets.fromLTRB(
+                20, 8, 20,
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
               child: AppPrimaryButton(
                 label: AppStrings.addSeller,
                 onPressed: () => _showAddSellerSheet(context, app),
