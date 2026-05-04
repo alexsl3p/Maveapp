@@ -17,7 +17,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'mave_sales.db');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -34,6 +34,7 @@ class DatabaseHelper {
         purchase_price_1 REAL NOT NULL,
         purchase_price_5 REAL NOT NULL,
         purchase_price_10 REAL NOT NULL,
+        purchase_price_box REAL NOT NULL DEFAULT 0,
         is_active INTEGER NOT NULL DEFAULT 1,
         sort_order INTEGER NOT NULL DEFAULT 0
       )
@@ -141,6 +142,11 @@ class DatabaseHelper {
           [entry.value, entry.key],
         );
       }
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE products ADD COLUMN purchase_price_box REAL NOT NULL DEFAULT 0',
+      );
     }
   }
 

@@ -366,12 +366,13 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
         Text('Закупочная цена', style: AppTypography.labelLarge),
         const SizedBox(height: 10),
         Row(
-          children: [1, 5, 10].map((tier) {
+          children: [1, 5, 10, if (widget.product.hasBoxPrice) 25].map((tier) {
+            final tiers = [1, 5, 10, if (widget.product.hasBoxPrice) 25];
             final isSelected = _selectedTier == tier;
             final price = widget.product.purchasePriceForTier(tier);
             return Expanded(
               child: Padding(
-                padding: EdgeInsets.only(right: tier != 10 ? 8 : 0),
+                padding: EdgeInsets.only(right: tier != tiers.last ? 8 : 0),
                 child: GestureDetector(
                   onTap: () {
                     HapticFeedback.selectionClick();

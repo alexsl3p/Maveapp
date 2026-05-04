@@ -7,6 +7,7 @@ class Product {
   final double purchasePrice1;
   final double purchasePrice5;
   final double purchasePrice10;
+  final double purchasePriceBox;
   final bool isActive;
   final int sortOrder;
 
@@ -19,9 +20,12 @@ class Product {
     required this.purchasePrice1,
     required this.purchasePrice5,
     required this.purchasePrice10,
+    this.purchasePriceBox = 0,
     this.isActive = true,
     this.sortOrder = 0,
   });
+
+  bool get hasBoxPrice => purchasePriceBox > 0;
 
   double purchasePriceForTier(int tier) {
     switch (tier) {
@@ -29,6 +33,8 @@ class Product {
         return purchasePrice5;
       case 10:
         return purchasePrice10;
+      case 25:
+        return purchasePriceBox;
       default:
         return purchasePrice1;
     }
@@ -40,6 +46,8 @@ class Product {
         return '5 шт';
       case 10:
         return '10 шт';
+      case 25:
+        return 'Кор.';
       default:
         return '1 шт';
     }
@@ -54,6 +62,7 @@ class Product {
     double? purchasePrice1,
     double? purchasePrice5,
     double? purchasePrice10,
+    double? purchasePriceBox,
     bool? isActive,
     int? sortOrder,
   }) {
@@ -66,6 +75,7 @@ class Product {
       purchasePrice1: purchasePrice1 ?? this.purchasePrice1,
       purchasePrice5: purchasePrice5 ?? this.purchasePrice5,
       purchasePrice10: purchasePrice10 ?? this.purchasePrice10,
+      purchasePriceBox: purchasePriceBox ?? this.purchasePriceBox,
       isActive: isActive ?? this.isActive,
       sortOrder: sortOrder ?? this.sortOrder,
     );
@@ -81,6 +91,7 @@ class Product {
       'purchase_price_1': purchasePrice1,
       'purchase_price_5': purchasePrice5,
       'purchase_price_10': purchasePrice10,
+      'purchase_price_box': purchasePriceBox,
       'is_active': isActive ? 1 : 0,
       'sort_order': sortOrder,
     };
@@ -96,6 +107,8 @@ class Product {
       purchasePrice1: (map['purchase_price_1'] as num).toDouble(),
       purchasePrice5: (map['purchase_price_5'] as num).toDouble(),
       purchasePrice10: (map['purchase_price_10'] as num).toDouble(),
+      purchasePriceBox:
+          (map['purchase_price_box'] as num?)?.toDouble() ?? 0,
       isActive: (map['is_active'] as int) == 1,
       sortOrder: (map['sort_order'] as int?) ?? 0,
     );

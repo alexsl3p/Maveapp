@@ -613,11 +613,12 @@ class _AddStockSheetState extends State<_AddStockSheet> {
               Text('Закупочная цена', style: AppTypography.labelLarge),
               const SizedBox(height: 10),
               Row(
-                children: [1, 5, 10].map((tier) {
+                children: [1, 5, 10, if (widget.product.hasBoxPrice) 25].map((tier) {
+                  final tiers = [1, 5, 10, if (widget.product.hasBoxPrice) 25];
                   final isSelected = _tier == tier;
                   return Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(right: tier != 10 ? 8 : 0),
+                      padding: EdgeInsets.only(right: tier != tiers.last ? 8 : 0),
                       child: GestureDetector(
                         onTap: () => _onTierChanged(tier),
                         child: AnimatedContainer(
@@ -950,6 +951,7 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
   late final TextEditingController _p1Controller;
   late final TextEditingController _p5Controller;
   late final TextEditingController _p10Controller;
+  late final TextEditingController _pBoxController;
   bool _isSaving = false;
   String? _newImagePath;
 
@@ -965,6 +967,10 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
         text: widget.product.purchasePrice5.toStringAsFixed(2));
     _p10Controller = TextEditingController(
         text: widget.product.purchasePrice10.toStringAsFixed(2));
+    _pBoxController = TextEditingController(
+        text: widget.product.purchasePriceBox > 0
+            ? widget.product.purchasePriceBox.toStringAsFixed(2)
+            : '');
   }
 
   @override
@@ -974,6 +980,7 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
     _p1Controller.dispose();
     _p5Controller.dispose();
     _p10Controller.dispose();
+    _pBoxController.dispose();
     super.dispose();
   }
 
@@ -1122,6 +1129,11 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                 label: 'Закупка 10 шт',
                 controller: _p10Controller,
               ),
+              const SizedBox(height: 12),
+              _PriceField(
+                label: 'Закупка коробка',
+                controller: _pBoxController,
+              ),
               const SizedBox(height: 24),
               AppPrimaryButton(
                 label: AppStrings.save,
@@ -1139,6 +1151,8 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                         _parse(_p5Controller, widget.product.purchasePrice5),
                     purchasePrice10:
                         _parse(_p10Controller, widget.product.purchasePrice10),
+                    purchasePriceBox:
+                        _parse(_pBoxController, widget.product.purchasePriceBox),
                     imageUrl: _newImagePath ?? widget.product.imageUrl,
                   );
                   await context.read<CatalogProvider>().updateProduct(updated);
@@ -1222,6 +1236,7 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
   final _p1Controller = TextEditingController();
   final _p5Controller = TextEditingController();
   final _p10Controller = TextEditingController();
+  final _pBoxController = TextEditingController();
   String _category = 'KOSMETIK';
   String? _imagePath;
   bool _isSaving = false;
@@ -1240,6 +1255,7 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
     _p1Controller.dispose();
     _p5Controller.dispose();
     _p10Controller.dispose();
+    _pBoxController.dispose();
     super.dispose();
   }
 
@@ -1390,6 +1406,8 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
               _PriceField(label: 'Закупка 5 шт', controller: _p5Controller),
               const SizedBox(height: 12),
               _PriceField(label: 'Закупка 10 шт', controller: _p10Controller),
+              const SizedBox(height: 12),
+              _PriceField(label: 'Закупка коробка', controller: _pBoxController),
               const SizedBox(height: 24),
               AppPrimaryButton(
                 label: AppStrings.save,
@@ -1406,6 +1424,7 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
                     purchasePrice1: _parse(_p1Controller),
                     purchasePrice5: _parse(_p5Controller),
                     purchasePrice10: _parse(_p10Controller),
+                    purchasePriceBox: _parse(_pBoxController),
                   );
                   await context.read<CatalogProvider>().addProduct(product);
                   if (mounted) Navigator.pop(context);

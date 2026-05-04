@@ -22,6 +22,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  CatalogProvider? _catalogProvider;
 
   static const _destinations = [
     NavigationDestination(
@@ -53,7 +54,24 @@ class _MainScreenState extends State<MainScreen> {
       context.read<AppProvider>().init();
       context.read<SalesProvider>().init();
       context.read<WarehouseProvider>().load();
+
+      _catalogProvider = context.read<CatalogProvider>();
+      _catalogProvider!.addListener(_onCatalogChanged);
     });
+  }
+
+  @override
+  void dispose() {
+    _catalogProvider?.removeListener(_onCatalogChanged);
+    super.dispose();
+  }
+
+  void _onCatalogChanged() {
+    if (!mounted) return;
+    final catalog = context.read<CatalogProvider>();
+    if (!catalog.isLoading) {
+      context.read<SalesProvider>().reload();
+    }
   }
 
   void _onTabChanged(int index) {
