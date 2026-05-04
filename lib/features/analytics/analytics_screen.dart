@@ -7,6 +7,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/analytics_provider.dart';
 import '../../data/models/analytics_data.dart';
+import '../../widgets/app_button.dart';
 import 'widgets/kpi_card.dart';
 import 'widgets/profit_chart.dart';
 
@@ -25,6 +26,31 @@ class _AnalyticsView extends StatelessWidget {
   int _daysInMonth(String monthKey) {
     final date = AppFormatters.fromMonthKey(monthKey);
     return DateTime(date.year, date.month + 1, 0).day;
+  }
+
+  String _filterLabel(AnalyticsProvider analytics) {
+    if (analytics.filterMode == AnalyticsFilterMode.allTime) return 'Все время';
+    if (analytics.filterMode == AnalyticsFilterMode.dateRange) {
+      final from = analytics.dateFrom;
+      final to = analytics.dateTo;
+      if (from != null && to != null) {
+        return '${AppFormatters.dayMonth(from)} – ${AppFormatters.dayMonth(to)}';
+      }
+    }
+    return '';
+  }
+
+  void _showFilterSheet(BuildContext context, AnalyticsProvider analytics) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: analytics,
+        child: const _FilterSheet(),
+      ),
+    );
   }
 
   @override
@@ -47,7 +73,8 @@ class _AnalyticsView extends StatelessWidget {
                       ),
                     ),
                   )
-                else if (analytics.availableMonths.isEmpty)
+                else if (analytics.availableMonths.isEmpty &&
+                    analytics.filterMode == AnalyticsFilterMode.month)
                   SliverFillRemaining(
                     child: Center(
                       child: Column(
@@ -80,7 +107,7 @@ class _AnalyticsView extends StatelessWidget {
     );
   }
 
-  // ── Header with month arrow navigator ────────────────────────────────────
+  // ── Header with month navigator + filter button ───────────────────────────
   SliverToBoxAdapter _buildHeader(
       BuildContext context, AnalyticsProvider analytics) {
     final months = analytics.availableMonths;
@@ -88,6 +115,8 @@ class _AnalyticsView extends StatelessWidget {
     final idx = months.indexOf(selected);
     final hasPrev = idx < months.length - 1;
     final hasNext = idx > 0;
+    final isMonth = analytics.filterMode == AnalyticsFilterMode.month;
+    final isFiltered = analytics.filterMode != AnalyticsFilterMode.month;
 
     return SliverToBoxAdapter(
       child: Padding(
@@ -95,20 +124,46 @@ class _AnalyticsView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              AppStrings.analyticsTitle,
-              style: AppTypography.displayMedium
-                  .copyWith(fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Text(
+                  AppStrings.analyticsTitle,
+                  style: AppTypography.displayMedium
+                      .copyWith(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => _showFilterSheet(context, analytics),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isFiltered
+                          ? AppColors.accentBrown
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: isFiltered
+                          ? AppColors.lightCream
+                          : AppColors.mutedText,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            if (months.isNotEmpty) ...[
+            if (isMonth && months.isNotEmpty) ...[
               const SizedBox(height: 14),
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.cardBackground,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                padding: const EdgeInsets.symmetric(
-                    vertical: 4, horizontal: 4),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                 child: Row(
                   children: [
                     _NavArrow(
@@ -149,6 +204,34 @@ class _AnalyticsView extends StatelessWidget {
                     onTap: (i) => analytics.selectMonth(months[i]),
                   ),
                 ),
+            ] else if (isFiltered) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      analytics.filterMode == AnalyticsFilterMode.allTime
+                          ? Icons.all_inclusive
+                          : Icons.date_range,
+                      size: 16,
+                      color: AppColors.accentBrown,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _filterLabel(analytics),
+                      style: AppTypography.titleSmall
+                          .copyWith(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
@@ -302,6 +385,224 @@ class _AnalyticsView extends StatelessWidget {
             const SizedBox(height: 12),
             ...analytics.sellerSummaries
                 .map((s) => _SellerStatTile(summary: s)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Analytics filter sheet ────────────────────────────────────────────────────
+class _FilterSheet extends StatefulWidget {
+  const _FilterSheet();
+
+  @override
+  State<_FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<_FilterSheet> {
+  late AnalyticsFilterMode _mode;
+  DateTime? _from;
+  DateTime? _to;
+
+  @override
+  void initState() {
+    super.initState();
+    final analytics = context.read<AnalyticsProvider>();
+    _mode = analytics.filterMode;
+    _from = analytics.dateFrom ?? DateTime.now().subtract(const Duration(days: 30));
+    _to = analytics.dateTo ?? DateTime.now();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.lightCream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, mq.viewPadding.bottom + 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Период', style: AppTypography.titleMedium),
+          const SizedBox(height: 16),
+          _ModeOption(
+            icon: Icons.calendar_month,
+            label: 'По месяцу',
+            selected: _mode == AnalyticsFilterMode.month,
+            onTap: () => setState(() => _mode = AnalyticsFilterMode.month),
+          ),
+          const SizedBox(height: 8),
+          _ModeOption(
+            icon: Icons.all_inclusive,
+            label: 'Все время',
+            selected: _mode == AnalyticsFilterMode.allTime,
+            onTap: () => setState(() => _mode = AnalyticsFilterMode.allTime),
+          ),
+          const SizedBox(height: 8),
+          _ModeOption(
+            icon: Icons.date_range,
+            label: 'Выбрать даты',
+            selected: _mode == AnalyticsFilterMode.dateRange,
+            onTap: () => setState(() => _mode = AnalyticsFilterMode.dateRange),
+          ),
+          if (_mode == AnalyticsFilterMode.dateRange) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _DatePickerButton(
+                    label: 'С',
+                    date: _from,
+                    onPicked: (d) => setState(() => _from = d),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DatePickerButton(
+                    label: 'По',
+                    date: _to,
+                    onPicked: (d) => setState(() => _to = d),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 20),
+          AppPrimaryButton(
+            label: 'Применить',
+            onPressed: () async {
+              final analytics = context.read<AnalyticsProvider>();
+              Navigator.pop(context);
+              if (_mode == AnalyticsFilterMode.month) {
+                await analytics.setFilterMonth();
+              } else if (_mode == AnalyticsFilterMode.allTime) {
+                await analytics.setFilterAllTime();
+              } else if (_from != null && _to != null) {
+                await analytics.setFilterDateRange(_from!, _to!);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ModeOption({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accentBrown : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? AppColors.lightCream : AppColors.mutedText,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: AppTypography.bodyMedium.copyWith(
+                color: selected ? AppColors.lightCream : AppColors.deepText,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+            const Spacer(),
+            if (selected)
+              const Icon(Icons.check, size: 16, color: AppColors.lightCream),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DatePickerButton extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final ValueChanged<DateTime> onPicked;
+
+  const _DatePickerButton({
+    required this.label,
+    required this.date,
+    required this.onPicked,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now().add(const Duration(days: 1)),
+          builder: (context, child) => Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.accentBrown,
+              ),
+            ),
+            child: child!,
+          ),
+        );
+        if (picked != null) onPicked(picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.divider, width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$label: ',
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.mutedText),
+            ),
+            Text(
+              date != null ? AppFormatters.dayMonth(date!) : '—',
+              style: AppTypography.bodyMedium
+                  .copyWith(fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),

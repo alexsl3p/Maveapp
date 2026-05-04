@@ -40,6 +40,12 @@ class CatalogProvider extends ChangeNotifier {
     await _productRepo.updateSortOrders(list.map((p) => p.id!).toList());
   }
 
+  Future<void> deleteProduct(int id) async {
+    await _productRepo.delete(id);
+    _products.removeWhere((p) => p.id == id);
+    notifyListeners();
+  }
+
   Future<void> toggleActive(int id, bool isActive) async {
     await _productRepo.setActive(id, isActive);
     _products = _products

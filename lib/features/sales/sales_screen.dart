@@ -70,7 +70,7 @@ class _SalesView extends StatelessWidget {
             // Centered logo
             Image.asset(
               'assets/images/mave_logo.png',
-              height: 108,
+              height: 54,
               fit: BoxFit.contain,
             ),
             // Seller avatar pinned to the left

@@ -107,59 +107,73 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     if (_isSaving) return;
     final appProvider = context.read<AppProvider>();
     final seller = appProvider.currentSeller;
-
     final warehouseProvider = context.read<WarehouseProvider>();
     final salesProvider = context.read<SalesProvider>();
 
     setState(() => _isSaving = true);
 
-    double purchasePrice;
-    int tier;
-    if (_useWarehouse) {
-      purchasePrice = await warehouseProvider
-          .deductAndGetPrice(widget.product.id!, _quantity, _selectedLocation);
-      tier = 0;
-    } else {
-      purchasePrice = _purchasePrice;
-      tier = _selectedTier;
+    try {
+      double purchasePrice;
+      int tier;
+      if (_useWarehouse) {
+        final pid = widget.product.id;
+        if (pid == null) {
+          setState(() => _isSaving = false);
+          return;
+        }
+        purchasePrice = await warehouseProvider
+            .deductAndGetPrice(pid, _quantity, _selectedLocation);
+        tier = 0;
+      } else {
+        purchasePrice = _purchasePrice;
+        tier = _selectedTier;
+      }
+
+      if (!mounted) return;
+
+      final now = DateTime.now();
+      final isUvp = (_salePrice - widget.product.uvpPrice).abs() < 0.001;
+      final profit = (_salePrice - purchasePrice) * _quantity;
+      final margin = _salePrice > 0
+          ? ((_salePrice - purchasePrice) / _salePrice) * 100
+          : 0.0;
+
+      final sale = Sale(
+        productId: widget.product.id!,
+        sellerId: seller?.id ?? 0,
+        productTitleSnapshot: widget.product.title,
+        sellerNameSnapshot: seller?.name ?? '',
+        productImageSnapshot: widget.product.imageUrl,
+        purchasePriceSnapshot: purchasePrice,
+        salePriceSnapshot: _salePrice,
+        priceMode: _useWarehouse
+            ? 'warehouse_$_selectedLocation'
+            : (isUvp ? 'uvp' : 'custom'),
+        purchaseTier: tier,
+        quantity: _quantity,
+        profit: profit,
+        margin: margin,
+        soldAt: now,
+        monthKey: AppFormatters.toMonthKey(now),
+      );
+
+      await salesProvider.saveSale(sale);
+
+      if (!mounted) return;
+
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _isSaving = false;
+        _showSuccess = true;
+        _savedProfit = profit;
+      });
+      _successController.forward();
+
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) setState(() => _isSaving = false);
     }
-
-    final now = DateTime.now();
-    final isUvp = (_salePrice - widget.product.uvpPrice).abs() < 0.001;
-    final profit = (_salePrice - purchasePrice) * _quantity;
-    final margin = _salePrice > 0
-        ? ((_salePrice - purchasePrice) / _salePrice) * 100
-        : 0.0;
-
-    final sale = Sale(
-      productId: widget.product.id!,
-      sellerId: seller?.id ?? 0,
-      productTitleSnapshot: widget.product.title,
-      sellerNameSnapshot: seller?.name ?? '',
-      productImageSnapshot: widget.product.imageUrl,
-      purchasePriceSnapshot: purchasePrice,
-      salePriceSnapshot: _salePrice,
-      priceMode: isUvp ? 'uvp' : 'custom',
-      purchaseTier: tier,
-      quantity: _quantity,
-      profit: profit,
-      margin: margin,
-      soldAt: now,
-      monthKey: AppFormatters.toMonthKey(now),
-    );
-
-    await salesProvider.saveSale(sale);
-
-    HapticFeedback.heavyImpact();
-    setState(() {
-      _isSaving = false;
-      _showSuccess = true;
-      _savedProfit = profit;
-    });
-    _successController.forward();
-
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (mounted) Navigator.of(context).pop();
   }
 
   @override

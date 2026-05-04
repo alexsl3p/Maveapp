@@ -48,10 +48,14 @@ class KpiCard extends StatelessWidget {
                 const SizedBox(width: 5),
               ],
               Expanded(
-                child: Text(
-                  label.toUpperCase(),
-                  style: AppTypography.overline,
-                  maxLines: 2,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label.toUpperCase(),
+                    style: AppTypography.overline,
+                    maxLines: 1,
+                  ),
                 ),
               ),
             ],

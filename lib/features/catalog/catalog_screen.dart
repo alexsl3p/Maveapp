@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -107,6 +108,7 @@ class _CatalogViewState extends State<_CatalogView>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(),
                 children: const [
                   _ProductsTab(),
                   _WarehouseTab(),
@@ -123,8 +125,15 @@ class _CatalogViewState extends State<_CatalogView>
 
 // ─── Products Tab ────────────────────────────────────────────────────────────
 
-class _ProductsTab extends StatelessWidget {
+class _ProductsTab extends StatefulWidget {
   const _ProductsTab();
+
+  @override
+  State<_ProductsTab> createState() => _ProductsTabState();
+}
+
+class _ProductsTabState extends State<_ProductsTab> {
+  bool _reorderMode = false;
 
   @override
   Widget build(BuildContext context) {
@@ -138,67 +147,107 @@ class _ProductsTab extends StatelessWidget {
           );
         }
 
-        return Column(
-          children: [
-            Expanded(
-              child: ReorderableListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                buildDefaultDragHandles: false,
-                itemCount: catalog.products.length,
-                itemBuilder: (context, index) {
-                  final product = catalog.products[index];
-                  return Row(
-                    key: ValueKey(product.id),
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      ReorderableDragStartListener(
-                        index: index,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 16),
-                          child: Icon(
-                            Icons.drag_handle_rounded,
-                            color: AppColors.mutedText,
-                            size: 20,
+        if (_reorderMode) {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Row(
+                  children: [
+                    Text(
+                      'Удерживайте и перетащите',
+                      style: AppTypography.bodySmall
+                          .copyWith(color: AppColors.mutedText),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => setState(() => _reorderMode = false),
+                      child: Text(
+                        'Готово',
+                        style: AppTypography.labelLarge
+                            .copyWith(color: AppColors.accentBrown),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ReorderableListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  buildDefaultDragHandles: false,
+                  itemCount: catalog.products.length,
+                  itemBuilder: (context, index) {
+                    final product = catalog.products[index];
+                    return Row(
+                      key: ValueKey(product.id),
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        ReorderableDragStartListener(
+                          index: index,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 16),
+                            child: Icon(
+                              Icons.drag_handle_rounded,
+                              color: AppColors.mutedText,
+                              size: 20,
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: ProductListTile(
-                          product: product,
-                          onTap: () => _showEditSheet(context, product, catalog),
-                          onToggleActive: (value) =>
-                              catalog.toggleActive(product.id!, value),
+                        Expanded(
+                          child: ProductListTile(product: product),
                         ),
-                      ),
-                    ],
-                  );
-                },
-                onReorder: (oldIndex, newIndex) {
-                  if (newIndex > oldIndex) newIndex--;
-                  catalog.reorderProducts(oldIndex, newIndex);
-                },
+                      ],
+                    );
+                  },
+                  onReorder: (oldIndex, newIndex) {
+                    if (newIndex > oldIndex) newIndex--;
+                    catalog.reorderProducts(oldIndex, newIndex);
+                  },
+                ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                8,
-                20,
-                MediaQuery.of(context).padding.bottom + 16,
+            ],
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          itemCount: catalog.products.length + 1,
+          itemBuilder: (context, index) {
+            if (index == catalog.products.length) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: 8,
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                ),
+                child: AppPrimaryButton(
+                  label: AppStrings.addProduct,
+                  onPressed: () => _showAddSheet(context, catalog),
+                  icon: Icons.add,
+                ),
+              );
+            }
+            final product = catalog.products[index];
+            return GestureDetector(
+              onLongPress: () {
+                HapticFeedback.mediumImpact();
+                setState(() => _reorderMode = true);
+              },
+              child: ProductListTile(
+                product: product,
+                onTap: () => _showEditSheet(context, product, catalog),
+                onToggleActive: (value) =>
+                    catalog.toggleActive(product.id!, value),
               ),
-              child: AppPrimaryButton(
-                label: AppStrings.addProduct,
-                onPressed: () => _showAddSheet(context, catalog),
-                icon: Icons.add,
-              ),
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
 
-  void _showEditSheet(BuildContext context, Product product, CatalogProvider catalog) {
+  void _showEditSheet(
+      BuildContext context, Product product, CatalogProvider catalog) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1095,6 +1144,60 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                   await context.read<CatalogProvider>().updateProduct(updated);
                   if (mounted) Navigator.pop(context);
                 },
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.lightCream,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        title: Text('Удалить товар?',
+                            style: AppTypography.titleMedium),
+                        content: Text(
+                          'Товар будет удалён из каталога. История продаж сохранится.',
+                          style: AppTypography.bodyMedium
+                              .copyWith(color: AppColors.mutedText),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Отмена'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: Text(
+                              'Удалить',
+                              style: AppTypography.labelLarge
+                                  .copyWith(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true && mounted) {
+                      await context
+                          .read<CatalogProvider>()
+                          .deleteProduct(widget.product.id!);
+                      if (mounted) Navigator.pop(context);
+                    }
+                  },
+                  child: Text(
+                    'Удалить товар',
+                    style: AppTypography.labelLarge
+                        .copyWith(color: AppColors.error),
+                  ),
+                ),
               ),
             ],
           ),

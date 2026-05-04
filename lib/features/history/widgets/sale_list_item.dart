@@ -82,10 +82,27 @@ class SaleListItem extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        '${sale.quantity} шт · ${sale.purchaseTier} уп.',
-                        style: AppTypography.bodySmall,
-                      ),
+                      if (sale.priceMode.startsWith('warehouse_'))
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              sale.priceMode == 'warehouse_salon'
+                                  ? Icons.storefront_outlined
+                                  : Icons.home_outlined,
+                              size: 12,
+                              color: AppColors.mutedText,
+                            ),
+                            const SizedBox(width: 3),
+                            Text('${sale.quantity} шт',
+                                style: AppTypography.bodySmall),
+                          ],
+                        )
+                      else
+                        Text(
+                          '${sale.quantity} шт · ${sale.purchaseTier} уп.',
+                          style: AppTypography.bodySmall,
+                        ),
                       const SizedBox(width: 6),
                       Container(
                         width: 3,

@@ -71,6 +71,11 @@ class ProductRepository {
     await batch.commit(noResult: true);
   }
 
+  Future<void> delete(int id) async {
+    final db = await _db.database;
+    await db.delete('products', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<List<String>> getCategories() async {
     final db = await _db.database;
     final rows = await db.rawQuery(

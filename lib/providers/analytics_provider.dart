@@ -3,6 +3,8 @@ import '../data/models/analytics_data.dart';
 import '../data/repositories/sale_repository.dart';
 import '../core/utils/formatters.dart';
 
+enum AnalyticsFilterMode { month, allTime, dateRange }
+
 class AnalyticsProvider extends ChangeNotifier {
   final SaleRepository _saleRepo;
 
@@ -16,6 +18,10 @@ class AnalyticsProvider extends ChangeNotifier {
   String _selectedMonthKey = AppFormatters.toMonthKey(DateTime.now());
   bool _isLoading = false;
 
+  AnalyticsFilterMode _filterMode = AnalyticsFilterMode.month;
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
+
   MonthlySummary? get summary => _summary;
   List<ProductSummary> get topProducts => _topProducts;
   List<SellerSummary> get sellerSummaries => _sellerSummaries;
@@ -23,6 +29,9 @@ class AnalyticsProvider extends ChangeNotifier {
   List<String> get availableMonths => _availableMonths;
   String get selectedMonthKey => _selectedMonthKey;
   bool get isLoading => _isLoading;
+  AnalyticsFilterMode get filterMode => _filterMode;
+  DateTime? get dateFrom => _dateFrom;
+  DateTime? get dateTo => _dateTo;
 
   Future<void> load() async {
     _isLoading = true;
@@ -49,18 +58,63 @@ class AnalyticsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _loadData() async {
-    final results = await Future.wait([
-      _saleRepo.getMonthlySummary(_selectedMonthKey),
-      _saleRepo.getTopProducts(_selectedMonthKey),
-      _saleRepo.getSellerSummaries(_selectedMonthKey),
-      _saleRepo.getDailyRevenue(_selectedMonthKey),
-    ]);
+  Future<void> setFilterMonth() async {
+    if (_filterMode == AnalyticsFilterMode.month) return;
+    _filterMode = AnalyticsFilterMode.month;
+    _isLoading = true;
+    notifyListeners();
+    await _loadData();
+    _isLoading = false;
+    notifyListeners();
+  }
 
-    _summary = results[0] as MonthlySummary;
-    _topProducts = results[1] as List<ProductSummary>;
-    _sellerSummaries = results[2] as List<SellerSummary>;
-    _dailyRevenue = results[3] as Map<int, double>;
+  Future<void> setFilterAllTime() async {
+    _filterMode = AnalyticsFilterMode.allTime;
+    _isLoading = true;
+    notifyListeners();
+    await _loadData();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> setFilterDateRange(DateTime from, DateTime to) async {
+    _filterMode = AnalyticsFilterMode.dateRange;
+    _dateFrom = from;
+    _dateTo = to;
+    _isLoading = true;
+    notifyListeners();
+    await _loadData();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> _loadData() async {
+    if (_filterMode == AnalyticsFilterMode.month) {
+      final results = await Future.wait([
+        _saleRepo.getMonthlySummary(_selectedMonthKey),
+        _saleRepo.getTopProducts(_selectedMonthKey),
+        _saleRepo.getSellerSummaries(_selectedMonthKey),
+        _saleRepo.getDailyRevenue(_selectedMonthKey),
+      ]);
+      _summary = results[0] as MonthlySummary;
+      _topProducts = results[1] as List<ProductSummary>;
+      _sellerSummaries = results[2] as List<SellerSummary>;
+      _dailyRevenue = results[3] as Map<int, double>;
+    } else {
+      final from =
+          _filterMode == AnalyticsFilterMode.dateRange ? _dateFrom : null;
+      final to =
+          _filterMode == AnalyticsFilterMode.dateRange ? _dateTo : null;
+      final results = await Future.wait([
+        _saleRepo.getSummaryFiltered(from: from, to: to),
+        _saleRepo.getTopProductsFiltered(from: from, to: to),
+        _saleRepo.getSellerSummariesFiltered(from: from, to: to),
+      ]);
+      _summary = results[0] as MonthlySummary;
+      _topProducts = results[1] as List<ProductSummary>;
+      _sellerSummaries = results[2] as List<SellerSummary>;
+      _dailyRevenue = {};
+    }
   }
 
   Future<void> reload() async {
