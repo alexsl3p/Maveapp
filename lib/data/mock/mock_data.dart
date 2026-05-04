@@ -8,6 +8,7 @@ class MockData {
         const Product(
           title: 'Molecular Oil Treatment 100ml',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/treatment_oil_100ml.png',
           uvpPrice: 34.95,
           purchasePrice1: 22.00,
           purchasePrice5: 19.50,
@@ -17,6 +18,7 @@ class MockData {
         const Product(
           title: 'Organic Oil 30ml',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/organic_oil_30ml.jpg',
           uvpPrice: 18.95,
           purchasePrice1: 11.50,
           purchasePrice5: 10.20,
@@ -26,6 +28,7 @@ class MockData {
         const Product(
           title: 'Organic Paste Skin Repair 15ml',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/organic_paste.jpg',
           uvpPrice: 24.95,
           purchasePrice1: 15.50,
           purchasePrice5: 13.80,
@@ -35,6 +38,7 @@ class MockData {
         const Product(
           title: 'Enzyme Scrub 400g',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/enzyme_scrub_400g.jpg',
           uvpPrice: 32.95,
           purchasePrice1: 20.50,
           purchasePrice5: 18.20,
@@ -44,6 +48,7 @@ class MockData {
         const Product(
           title: 'Invisible Mask',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/invisible_mask.jpg',
           uvpPrice: 29.95,
           purchasePrice1: 18.50,
           purchasePrice5: 16.50,
@@ -53,6 +58,7 @@ class MockData {
         const Product(
           title: 'Mizellen Reinigungsschaum 200ml',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/micellar_foam_200ml.jpg',
           uvpPrice: 19.95,
           purchasePrice1: 12.50,
           purchasePrice5: 11.00,
@@ -62,6 +68,7 @@ class MockData {
         const Product(
           title: 'Mizellen Tücher',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/micellar_wipes.jpg',
           uvpPrice: 9.95,
           purchasePrice1: 6.00,
           purchasePrice5: 5.30,
@@ -71,6 +78,7 @@ class MockData {
         const Product(
           title: '28 Cream',
           category: 'KOSMETIK',
+          imageUrl: 'assets/images/products/cream_28_actives.jpg',
           uvpPrice: 35.95,
           purchasePrice1: 22.50,
           purchasePrice5: 20.00,
@@ -80,6 +88,7 @@ class MockData {
         const Product(
           title: 'WOW SKIN SERUM PDRN 2 IN 1',
           category: 'PROFESSIONAL',
+          imageUrl: 'assets/images/products/wow_serum_pdrn.jpg',
           uvpPrice: 46.95,
           purchasePrice1: 29.50,
           purchasePrice5: 26.20,
@@ -89,6 +98,7 @@ class MockData {
         const Product(
           title: 'WOW SKIN SERUM 2 IN 1',
           category: 'PROFESSIONAL',
+          imageUrl: 'assets/images/products/wow_serum_2in1.jpg',
           uvpPrice: 39.95,
           purchasePrice1: 25.00,
           purchasePrice5: 22.20,
@@ -98,6 +108,7 @@ class MockData {
         const Product(
           title: 'EXPERT S.L.I.M.E',
           category: 'PROFESSIONAL',
+          imageUrl: 'assets/images/products/slime_500g.jpg',
           uvpPrice: 42.95,
           purchasePrice1: 27.00,
           purchasePrice5: 24.00,
@@ -107,6 +118,7 @@ class MockData {
         const Product(
           title: 'Molecular Shampoo & Conditioner Set',
           category: 'PROFESSIONAL',
+          imageUrl: 'assets/images/products/shampoo_conditioner.jpg',
           uvpPrice: 44.95,
           purchasePrice1: 28.50,
           purchasePrice5: 25.30,
@@ -143,6 +155,7 @@ class MockData {
         const Product(
           title: 'Black Nanopowder + Nano360',
           category: 'PROFESSIONAL',
+          imageUrl: 'assets/images/products/black_nanopowder.jpg',
           uvpPrice: 45.95,
           purchasePrice1: 29.00,
           purchasePrice5: 25.80,
@@ -152,6 +165,7 @@ class MockData {
         const Product(
           title: 'Taliora Shower Serum 500ml',
           category: 'KÖRPER',
+          imageUrl: 'assets/images/products/taliora_shower_serum.jpg',
           uvpPrice: 27.95,
           purchasePrice1: 17.50,
           purchasePrice5: 15.50,

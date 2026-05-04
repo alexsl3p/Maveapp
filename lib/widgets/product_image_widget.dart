@@ -21,19 +21,38 @@ class ProductImageWidget extends StatelessWidget {
     this.borderRadius,
   });
 
-  bool get _isLocalFile =>
+  bool get _isAsset =>
       imageUrl != null &&
       imageUrl!.isNotEmpty &&
-      !imageUrl!.startsWith('http');
+      imageUrl!.startsWith('assets/');
 
   bool get _isNetworkUrl =>
       imageUrl != null &&
       imageUrl!.isNotEmpty &&
       imageUrl!.startsWith('http');
 
+  bool get _isLocalFile =>
+      imageUrl != null &&
+      imageUrl!.isNotEmpty &&
+      !imageUrl!.startsWith('http') &&
+      !imageUrl!.startsWith('assets/');
+
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(16);
+
+    if (_isAsset) {
+      return ClipRRect(
+        borderRadius: radius,
+        child: Image.asset(
+          imageUrl!,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(radius),
+        ),
+      );
+    }
 
     if (_isLocalFile) {
       return ClipRRect(

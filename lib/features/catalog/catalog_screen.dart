@@ -263,11 +263,16 @@ class _WarehouseTab extends StatelessWidget {
           itemCount: products.length,
           itemBuilder: (context, index) {
             final product = products[index];
-            final stock = warehouse.stockFor(product.id!);
+            final stockMap = warehouse.stockByLocation(product.id!);
+            final homeStock = stockMap['home'] ?? 0;
             return _WarehouseProductTile(
               product: product,
-              stock: stock,
+              stockMap: stockMap,
               onTap: () => _showAddStockSheet(context, product, warehouse),
+              onTransfer: homeStock > 0
+                  ? () => _showTransferDialog(
+                      context, product, warehouse, homeStock)
+                  : null,
             );
           },
         );
@@ -291,90 +296,146 @@ class _WarehouseTab extends StatelessWidget {
       ),
     );
   }
+
+  void _showTransferDialog(
+    BuildContext context,
+    Product product,
+    WarehouseProvider warehouse,
+    int homeStock,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: warehouse,
+        child: _TransferDialog(product: product, maxQty: homeStock),
+      ),
+    );
+  }
 }
 
 class _WarehouseProductTile extends StatelessWidget {
   final Product product;
-  final int stock;
+  final Map<String, int> stockMap;
   final VoidCallback onTap;
+  final VoidCallback? onTransfer;
 
   const _WarehouseProductTile({
     required this.product,
-    required this.stock,
+    required this.stockMap,
     required this.onTap,
+    this.onTransfer,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowLight,
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ProductImageWidget(
-              imageUrl: product.imageUrl,
-              category: product.category,
-              title: product.title,
-              width: 44,
-              height: 44,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.title,
-                    style: AppTypography.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    product.category,
-                    style: AppTypography.bodySmall
-                        .copyWith(color: AppColors.mutedText),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+    final homeStock = stockMap['home'] ?? 0;
+    final salonStock = stockMap['salon'] ?? 0;
+    final totalStock = homeStock + salonStock;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ProductImageWidget(
+            imageUrl: product.imageUrl,
+            category: product.category,
+            title: product.title,
+            width: 44,
+            height: 44,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$stock шт',
-                  style: AppTypography.titleSmall.copyWith(
-                    color: stock > 0 ? AppColors.success : AppColors.mutedText,
-                  ),
+                  product.title,
+                  style: AppTypography.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  'на складе',
-                  style: AppTypography.overline.copyWith(fontSize: 9),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    if (homeStock > 0) ...[
+                      const Icon(Icons.home_outlined,
+                          size: 11, color: AppColors.mutedText),
+                      const SizedBox(width: 2),
+                      Text('$homeStock',
+                          style: AppTypography.overline
+                              .copyWith(fontSize: 10)),
+                      const SizedBox(width: 8),
+                    ],
+                    if (salonStock > 0) ...[
+                      const Icon(Icons.storefront_outlined,
+                          size: 11, color: AppColors.accentBrown),
+                      const SizedBox(width: 2),
+                      Text('$salonStock',
+                          style: AppTypography.overline.copyWith(
+                              fontSize: 10,
+                              color: AppColors.accentBrown)),
+                    ],
+                    if (totalStock == 0)
+                      Text('нет на складе',
+                          style: AppTypography.overline
+                              .copyWith(color: AppColors.mutedText)),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(width: 10),
-            const Icon(
-              Icons.add_circle_outline,
-              color: AppColors.accentBrown,
-              size: 22,
+          ),
+          // Transfer home → salon button
+          if (onTransfer != null)
+            GestureDetector(
+              onTap: onTransfer,
+              child: Container(
+                width: 34,
+                height: 34,
+                margin: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.divider, width: 0.5),
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppColors.accentBrown,
+                  size: 16,
+                ),
+              ),
             ),
-          ],
-        ),
+          // Add stock button
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 34,
+              height: 34,
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                color: AppColors.accentBrown,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.add,
+                color: AppColors.lightCream,
+                size: 18,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -391,6 +452,7 @@ class _AddStockSheet extends StatefulWidget {
 
 class _AddStockSheetState extends State<_AddStockSheet> {
   int _tier = 1;
+  String _location = 'home';
   final _quantityController = TextEditingController(text: '1');
   late TextEditingController _priceController;
   bool _isSaving = false;
@@ -455,6 +517,48 @@ class _AddStockSheetState extends State<_AddStockSheet> {
                     .copyWith(color: AppColors.mutedText),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 20),
+              Text('Склад', style: AppTypography.labelLarge),
+              const SizedBox(height: 10),
+              Row(
+                children: ['home', 'salon'].map((loc) {
+                  final isSelected = _location == loc;
+                  final label = loc == 'salon' ? 'Салон' : 'Дом';
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: loc == 'home' ? 8 : 0),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _location = loc),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.accentBrown
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            border: isSelected
+                                ? null
+                                : Border.all(
+                                    color: AppColors.divider, width: 0.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              label,
+                              style: AppTypography.labelLarge.copyWith(
+                                color: isSelected
+                                    ? AppColors.lightCream
+                                    : AppColors.deepText,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 20),
               Text('Закупочная цена', style: AppTypography.labelLarge),
@@ -553,7 +657,7 @@ class _AddStockSheetState extends State<_AddStockSheet> {
                   setState(() => _isSaving = true);
                   await context
                       .read<WarehouseProvider>()
-                      .addStock(widget.product.id!, qty, _tier, price);
+                      .addStock(widget.product.id!, qty, _tier, price, _location);
                   if (mounted) Navigator.pop(context);
                 },
               ),
@@ -1208,6 +1312,100 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Transfer Dialog ──────────────────────────────────────────────────────────
+
+class _TransferDialog extends StatefulWidget {
+  final Product product;
+  final int maxQty;
+
+  const _TransferDialog({required this.product, required this.maxQty});
+
+  @override
+  State<_TransferDialog> createState() => _TransferDialogState();
+}
+
+class _TransferDialogState extends State<_TransferDialog> {
+  final _qtyController = TextEditingController(text: '1');
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _qtyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.lightCream,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.arrow_forward_rounded,
+              color: AppColors.accentBrown, size: 20),
+          const SizedBox(width: 8),
+          Text('В салон', style: AppTypography.titleSmall),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.product.title,
+            style: AppTypography.bodySmall.copyWith(color: AppColors.mutedText),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Дом → Салон · макс. ${widget.maxQty} шт',
+            style: AppTypography.overline.copyWith(fontSize: 10),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _qtyController,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            style: AppTypography.bodyLarge,
+            decoration: const InputDecoration(
+              hintText: '0',
+              suffixText: 'шт',
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Отмена',
+              style: AppTypography.labelLarge
+                  .copyWith(color: AppColors.mutedText)),
+        ),
+        TextButton(
+          onPressed: _isSaving
+              ? null
+              : () async {
+                  final qty = int.tryParse(_qtyController.text) ?? 0;
+                  if (qty <= 0 || qty > widget.maxQty) return;
+                  final warehouse = context.read<WarehouseProvider>();
+                  setState(() => _isSaving = true);
+                  await warehouse.transfer(widget.product.id!, qty);
+                  if (mounted) Navigator.pop(context);
+                },
+          child: Text(
+            _isSaving ? '...' : 'Перевести',
+            style: AppTypography.labelLarge
+                .copyWith(color: AppColors.accentBrown),
+          ),
+        ),
+      ],
     );
   }
 }

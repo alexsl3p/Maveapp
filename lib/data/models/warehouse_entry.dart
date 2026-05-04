@@ -6,6 +6,7 @@ class WarehouseEntry {
   final double purchasePrice;
   final int purchaseTier;
   final DateTime purchasedAt;
+  final String location; // 'home' | 'salon'
 
   const WarehouseEntry({
     this.id,
@@ -15,6 +16,7 @@ class WarehouseEntry {
     required this.purchasePrice,
     required this.purchaseTier,
     required this.purchasedAt,
+    this.location = 'home',
   });
 
   WarehouseEntry copyWith({int? quantityRemaining}) => WarehouseEntry(
@@ -25,6 +27,7 @@ class WarehouseEntry {
         purchasePrice: purchasePrice,
         purchaseTier: purchaseTier,
         purchasedAt: purchasedAt,
+        location: location,
       );
 
   Map<String, dynamic> toMap() => {
@@ -35,6 +38,7 @@ class WarehouseEntry {
         'purchase_price': purchasePrice,
         'purchase_tier': purchaseTier,
         'purchased_at': purchasedAt.toIso8601String(),
+        'location': location,
       };
 
   factory WarehouseEntry.fromMap(Map<String, dynamic> m) => WarehouseEntry(
@@ -45,5 +49,6 @@ class WarehouseEntry {
         purchasePrice: (m['purchase_price'] as num).toDouble(),
         purchaseTier: m['purchase_tier'] as int,
         purchasedAt: DateTime.parse(m['purchased_at'] as String),
+        location: (m['location'] as String?) ?? 'home',
       );
 }

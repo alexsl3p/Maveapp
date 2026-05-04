@@ -17,7 +17,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'mave_sales.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -89,7 +89,8 @@ class DatabaseHelper {
         quantity_remaining INTEGER NOT NULL,
         purchase_price REAL NOT NULL,
         purchase_tier INTEGER NOT NULL,
-        purchased_at TEXT NOT NULL
+        purchased_at TEXT NOT NULL,
+        location TEXT NOT NULL DEFAULT 'home'
       )
     ''');
     await db.execute(
@@ -103,6 +104,43 @@ class DatabaseHelper {
     }
     if (oldVersion < 3) {
       await _createWarehouseTable(db);
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        "ALTER TABLE warehouse_entries ADD COLUMN location TEXT NOT NULL DEFAULT 'home'",
+      );
+    }
+    if (oldVersion < 5) {
+      final images = {
+        'Molecular Oil Treatment 100ml':
+            'assets/images/products/treatment_oil_100ml.png',
+        'Organic Oil 30ml': 'assets/images/products/organic_oil_30ml.jpg',
+        'Organic Paste Skin Repair 15ml':
+            'assets/images/products/organic_paste.jpg',
+        'Enzyme Scrub 400g': 'assets/images/products/enzyme_scrub_400g.jpg',
+        'Invisible Mask': 'assets/images/products/invisible_mask.jpg',
+        'Mizellen Reinigungsschaum 200ml':
+            'assets/images/products/micellar_foam_200ml.jpg',
+        'Mizellen Tücher': 'assets/images/products/micellar_wipes.jpg',
+        '28 Cream': 'assets/images/products/cream_28_actives.jpg',
+        'WOW SKIN SERUM PDRN 2 IN 1':
+            'assets/images/products/wow_serum_pdrn.jpg',
+        'WOW SKIN SERUM 2 IN 1':
+            'assets/images/products/wow_serum_2in1.jpg',
+        'EXPERT S.L.I.M.E': 'assets/images/products/slime_500g.jpg',
+        'Molecular Shampoo & Conditioner Set':
+            'assets/images/products/shampoo_conditioner.jpg',
+        'Black Nanopowder + Nano360':
+            'assets/images/products/black_nanopowder.jpg',
+        'Taliora Shower Serum 500ml':
+            'assets/images/products/taliora_shower_serum.jpg',
+      };
+      for (final entry in images.entries) {
+        await db.execute(
+          "UPDATE products SET image_url = ? WHERE title = ? AND (image_url IS NULL OR image_url = '')",
+          [entry.value, entry.key],
+        );
+      }
     }
   }
 

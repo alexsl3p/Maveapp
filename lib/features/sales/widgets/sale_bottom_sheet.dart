@@ -33,6 +33,7 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
   bool _useWarehouse = false;
   double _warehousePrice = 0.0;
   double _savedProfit = 0.0;
+  String _selectedLocation = 'home';
 
   late AnimationController _successController;
   late Animation<double> _successScale;
@@ -68,11 +69,15 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     final pid = widget.product.id;
     if (pid == null) return;
     final wh = context.read<WarehouseProvider>();
-    if (!wh.hasStock(pid)) return;
-    final price = await wh.previewPrice(pid, _quantity);
+    final locs = wh.locationsWithStock(pid);
+    if (locs.isEmpty) return;
+    // Prefer salon (selling location), fall back to home
+    final defaultLoc = locs.contains('salon') ? 'salon' : locs.first;
+    final price = await wh.previewPrice(pid, _quantity, defaultLoc);
     if (mounted) {
       setState(() {
         _useWarehouse = true;
+        _selectedLocation = defaultLoc;
         _warehousePrice = price;
       });
     }
@@ -82,7 +87,8 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     if (!_useWarehouse) return;
     final pid = widget.product.id;
     if (pid == null) return;
-    final price = await context.read<WarehouseProvider>().previewPrice(pid, _quantity);
+    final wh = context.read<WarehouseProvider>();
+    final price = await wh.previewPrice(pid, _quantity, _selectedLocation);
     if (mounted) setState(() => _warehousePrice = price);
   }
 
@@ -111,7 +117,7 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
     int tier;
     if (_useWarehouse) {
       purchasePrice = await warehouseProvider
-          .deductAndGetPrice(widget.product.id!, _quantity);
+          .deductAndGetPrice(widget.product.id!, _quantity, _selectedLocation);
       tier = 0;
     } else {
       purchasePrice = _purchasePrice;
@@ -253,33 +259,86 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
   }
 
   Widget _buildWarehouseBadge() {
-    final stock = context.watch<WarehouseProvider>().stockFor(widget.product.id ?? 0);
+    final wh = context.watch<WarehouseProvider>();
+    final pid = widget.product.id ?? 0;
+    final locs = wh.locationsWithStock(pid);
+    final stockMap = wh.stockByLocation(pid);
+    final currentStock = stockMap[_selectedLocation] ?? 0;
+    final locationLabel = _selectedLocation == 'salon' ? 'Салон' : 'Дом';
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.successLight,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.success.withOpacity(0.2), width: 0.5),
+        border: Border.all(
+            color: AppColors.success.withOpacity(0.2), width: 0.5),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.inventory_2_outlined, color: AppColors.success, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Со склада',
-                  style: AppTypography.labelLarge.copyWith(color: AppColors.success),
-                ),
-                Text(
-                  'Доступно: $stock шт · цена авт.',
-                  style: AppTypography.bodySmall
-                      .copyWith(color: AppColors.success.withOpacity(0.75)),
-                ),
-              ],
+          if (locs.length > 1) ...[
+            Row(
+              children: locs.map((loc) {
+                final isSelected = _selectedLocation == loc;
+                final label = loc == 'salon' ? 'Салон' : 'Дом';
+                final qty = stockMap[loc] ?? 0;
+                return Padding(
+                  padding: EdgeInsets.only(right: loc != locs.last ? 8 : 0),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedLocation = loc);
+                      _refreshWarehousePrice();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.success
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$label: $qty шт',
+                        style: AppTypography.labelLarge.copyWith(
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.mutedText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              const Icon(Icons.inventory_2_outlined,
+                  color: AppColors.success, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Со склада · $locationLabel',
+                      style: AppTypography.labelLarge
+                          .copyWith(color: AppColors.success),
+                    ),
+                    Text(
+                      'Доступно: $currentStock шт · цена авт.',
+                      style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.success.withOpacity(0.75)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

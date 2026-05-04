@@ -11,35 +11,41 @@ class WarehouseRepository {
     await db.insert('warehouse_entries', entry.toMap());
   }
 
-  // productId → total remaining units
-  Future<Map<int, int>> getStockSummary() async {
+  // Returns {productId: {location: qty}}
+  Future<Map<int, Map<String, int>>> getStockSummary() async {
     final db = await _db.database;
     final rows = await db.rawQuery('''
-      SELECT product_id, SUM(quantity_remaining) as total
+      SELECT product_id, location, SUM(quantity_remaining) as total
       FROM warehouse_entries
       WHERE quantity_remaining > 0
-      GROUP BY product_id
+      GROUP BY product_id, location
     ''');
-    return {
-      for (final r in rows)
-        (r['product_id'] as int): (r['total'] as num).toInt(),
-    };
+    final result = <int, Map<String, int>>{};
+    for (final r in rows) {
+      final pid = r['product_id'] as int;
+      final loc = (r['location'] as String?) ?? 'home';
+      final qty = (r['total'] as num).toInt();
+      result.putIfAbsent(pid, () => {})[loc] = qty;
+    }
+    return result;
   }
 
-  Future<List<WarehouseEntry>> getEntriesForProduct(int productId) async {
+  Future<List<WarehouseEntry>> getEntriesForProduct(
+      int productId, String location) async {
     final db = await _db.database;
     final rows = await db.query(
       'warehouse_entries',
-      where: 'product_id = ? AND quantity_remaining > 0',
-      whereArgs: [productId],
+      where: 'product_id = ? AND location = ? AND quantity_remaining > 0',
+      whereArgs: [productId, location],
       orderBy: 'purchased_at ASC',
     );
     return rows.map(WarehouseEntry.fromMap).toList();
   }
 
-  // Returns weighted average purchase price without modifying DB
-  Future<double> previewPrice(int productId, int quantity) async {
-    final entries = await getEntriesForProduct(productId);
+  // Weighted average price preview (no DB write)
+  Future<double> previewPrice(
+      int productId, int quantity, String location) async {
+    final entries = await getEntriesForProduct(productId, location);
     double totalCost = 0;
     int remaining = quantity;
     for (final e in entries) {
@@ -53,9 +59,10 @@ class WarehouseRepository {
   }
 
   // FIFO deduction — returns weighted avg purchase price per unit
-  Future<double> deductStock(int productId, int quantity) async {
+  Future<double> deductStock(
+      int productId, int quantity, String location) async {
     final db = await _db.database;
-    final entries = await getEntriesForProduct(productId);
+    final entries = await getEntriesForProduct(productId, location);
     double totalCost = 0;
     int remaining = quantity;
     for (final e in entries) {
@@ -72,5 +79,20 @@ class WarehouseRepository {
     }
     final consumed = quantity - remaining;
     return consumed > 0 ? totalCost / consumed : 0;
+  }
+
+  // Transfer units from home → salon preserving cost basis
+  Future<double> transfer(int productId, int quantity) async {
+    final price = await deductStock(productId, quantity, 'home');
+    await addEntry(WarehouseEntry(
+      productId: productId,
+      quantityTotal: quantity,
+      quantityRemaining: quantity,
+      purchasePrice: price,
+      purchaseTier: 0,
+      purchasedAt: DateTime.now(),
+      location: 'salon',
+    ));
+    return price;
   }
 }
