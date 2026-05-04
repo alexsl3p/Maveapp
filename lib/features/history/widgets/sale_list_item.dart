@@ -69,7 +69,9 @@ class SaleListItem extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        sale.sellerNameSnapshot.split(' ').first,
+                        sale.sellerNameSnapshot.isEmpty
+                            ? '—'
+                            : sale.sellerNameSnapshot.split(' ').first,
                         style: AppTypography.bodySmall,
                       ),
                       const SizedBox(width: 6),

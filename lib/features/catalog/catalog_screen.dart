@@ -108,7 +108,6 @@ class _CatalogViewState extends State<_CatalogView>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                physics: const NeverScrollableScrollPhysics(),
                 children: const [
                   _ProductsTab(),
                   _WarehouseTab(),
@@ -303,6 +302,7 @@ class _WarehouseTab extends StatelessWidget {
         }
 
         return ListView.builder(
+          physics: const ClampingScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
             20,
             0,
