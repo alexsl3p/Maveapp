@@ -17,8 +17,9 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'mave_sales.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -65,6 +66,7 @@ class DatabaseHelper {
         month_key TEXT NOT NULL,
         note TEXT,
         status TEXT NOT NULL DEFAULT 'active',
+        product_image_snapshot TEXT,
         FOREIGN KEY (product_id) REFERENCES products (id),
         FOREIGN KEY (seller_id) REFERENCES sellers (id)
       )
@@ -79,6 +81,14 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX idx_sales_product ON sales (product_id)',
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE sales ADD COLUMN product_image_snapshot TEXT',
+      );
+    }
   }
 
   Future<void> close() async {

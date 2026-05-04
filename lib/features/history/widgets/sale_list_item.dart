@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/sale.dart';
+import '../../../widgets/product_image_widget.dart';
 
 class SaleListItem extends StatelessWidget {
   final Sale sale;
@@ -41,10 +42,15 @@ class SaleListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Category color dot
-            _CategoryDot(category: sale.productTitleSnapshot),
+            ProductImageWidget(
+              imageUrl: sale.productImageSnapshot,
+              category: '',
+              title: sale.productTitleSnapshot,
+              width: 44,
+              height: 44,
+              borderRadius: BorderRadius.circular(10),
+            ),
             const SizedBox(width: 12),
-            // Product info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,7 +106,6 @@ class SaleListItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            // Price + profit
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -112,30 +117,25 @@ class SaleListItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: sale.profit >= 0
-                            ? AppColors.successLight
-                            : AppColors.errorLight,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        AppFormatters.price(sale.profit),
-                        style: AppTypography.bodySmall.copyWith(
-                          color: sale.profit >= 0
-                              ? AppColors.success
-                              : AppColors.error,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 11,
-                        ),
-                      ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: sale.profit >= 0
+                        ? AppColors.successLight
+                        : AppColors.errorLight,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    AppFormatters.price(sale.profit),
+                    style: AppTypography.bodySmall.copyWith(
+                      color: sale.profit >= 0
+                          ? AppColors.success
+                          : AppColors.error,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
                     ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -170,13 +170,11 @@ class SaleListItem extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: Text(
-          'Отменить продажу?',
-          style: AppTypography.titleMedium,
-        ),
+        title: Text('Отменить продажу?', style: AppTypography.titleMedium),
         content: Text(
           'Продажа будет помечена как отменённая. История сохранится.',
-          style: AppTypography.bodyMedium.copyWith(color: AppColors.mutedText),
+          style:
+              AppTypography.bodyMedium.copyWith(color: AppColors.mutedText),
         ),
         actions: [
           TextButton(
@@ -196,37 +194,10 @@ class SaleListItem extends StatelessWidget {
             },
             child: Text(
               'Да, отменить',
-              style: AppTypography.labelLarge.copyWith(
-                color: Colors.white,
-              ),
+              style: AppTypography.labelLarge.copyWith(color: Colors.white),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CategoryDot extends StatelessWidget {
-  final String category;
-
-  const _CategoryDot({required this.category});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.spa_outlined,
-          size: 20,
-          color: AppColors.accentBrown.withOpacity(0.7),
-        ),
       ),
     );
   }

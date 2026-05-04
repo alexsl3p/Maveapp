@@ -93,6 +93,7 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
       sellerId: seller.id!,
       productTitleSnapshot: widget.product.title,
       sellerNameSnapshot: seller.name,
+      productImageSnapshot: widget.product.imageUrl,
       purchasePriceSnapshot: _purchasePrice,
       salePriceSnapshot: _salePrice,
       priceMode: isUvp ? 'uvp' : 'custom',
@@ -332,24 +333,6 @@ class _SaleBottomSheetState extends State<SaleBottomSheet>
               ),
               const SizedBox(width: 20),
             ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        GestureDetector(
-          onTap: () {
-            _priceController.text =
-                widget.product.uvpPrice.toStringAsFixed(2);
-            setState(() {});
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Text(
-              'UVP ${AppFormatters.price(widget.product.uvpPrice)}  ↩',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.accentBrown,
-                fontSize: 12,
-              ),
-            ),
           ),
         ),
       ],

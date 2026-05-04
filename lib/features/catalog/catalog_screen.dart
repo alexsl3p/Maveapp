@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -447,8 +448,17 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
       maxWidth: 800,
     );
     if (file != null && mounted) {
-      setState(() => _newImagePath = file.path);
+      final permanent = await _copyToDocuments(file.path);
+      setState(() => _newImagePath = permanent);
     }
+  }
+
+  Future<String> _copyToDocuments(String tempPath) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final name = 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final dest = '${dir.path}/$name';
+    await File(tempPath).copy(dest);
+    return dest;
   }
 
   @override
@@ -640,8 +650,17 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
       maxWidth: 800,
     );
     if (file != null && mounted) {
-      setState(() => _imagePath = file.path);
+      final permanent = await _copyToDocuments(file.path);
+      setState(() => _imagePath = permanent);
     }
+  }
+
+  Future<String> _copyToDocuments(String tempPath) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final name = 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final dest = '${dir.path}/$name';
+    await File(tempPath).copy(dest);
+    return dest;
   }
 
   @override

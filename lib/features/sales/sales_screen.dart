@@ -63,19 +63,23 @@ class _SalesView extends StatelessWidget {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
+            // Centered logo
             Image.asset(
               'assets/images/mave_logo.png',
-              height: 60,
+              height: 72,
               fit: BoxFit.contain,
             ),
-            _SellerSelector(
-              sellers: app.sellers,
-              selected: app.currentSeller,
-              onSelected: app.setCurrentSeller,
+            // Seller avatar pinned to the left
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _SellerSelector(
+                sellers: app.sellers,
+                selected: app.currentSeller,
+                onSelected: app.setCurrentSeller,
+              ),
             ),
           ],
         ),
@@ -227,36 +231,7 @@ class _SellerSelector extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => _showSellerPicker(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _SellerAvatar(name: selected?.name ?? '?', size: 28),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Продавец',
-                  style: AppTypography.overline.copyWith(fontSize: 9),
-                ),
-                Text(
-                  selected?.name.split(' ').first ?? AppStrings.selectSeller,
-                  style: AppTypography.labelLarge.copyWith(fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 16, color: AppColors.mutedText),
-          ],
-        ),
-      ),
+      child: _SellerAvatar(name: selected?.name ?? '?', size: 44),
     );
   }
 

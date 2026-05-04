@@ -15,6 +15,7 @@ class Sale {
   final String monthKey; // 'YYYY-MM'
   final String? note;
   final String status; // 'active' or 'cancelled'
+  final String? productImageSnapshot;
 
   const Sale({
     this.id,
@@ -33,6 +34,7 @@ class Sale {
     required this.monthKey,
     this.note,
     this.status = 'active',
+    this.productImageSnapshot,
   });
 
   bool get isActive => status == 'active';
@@ -100,6 +102,7 @@ class Sale {
       'month_key': monthKey,
       'note': note,
       'status': status,
+      'product_image_snapshot': productImageSnapshot,
     };
   }
 
@@ -121,6 +124,7 @@ class Sale {
       monthKey: map['month_key'] as String,
       note: map['note'] as String?,
       status: map['status'] as String? ?? 'active',
+      productImageSnapshot: map['product_image_snapshot'] as String?,
     );
   }
 }
