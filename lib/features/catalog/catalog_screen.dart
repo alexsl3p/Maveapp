@@ -408,6 +408,7 @@ class _ProductEditSheet extends StatefulWidget {
 }
 
 class _ProductEditSheetState extends State<_ProductEditSheet> {
+  late final TextEditingController _titleController;
   late final TextEditingController _uvpController;
   late final TextEditingController _p1Controller;
   late final TextEditingController _p5Controller;
@@ -418,6 +419,7 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
   @override
   void initState() {
     super.initState();
+    _titleController = TextEditingController(text: widget.product.title);
     _uvpController =
         TextEditingController(text: widget.product.uvpPrice.toStringAsFixed(2));
     _p1Controller = TextEditingController(
@@ -430,6 +432,7 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
 
   @override
   void dispose() {
+    _titleController.dispose();
     _uvpController.dispose();
     _p1Controller.dispose();
     _p5Controller.dispose();
@@ -492,13 +495,14 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
               ),
               const SizedBox(height: 16),
               Text(AppStrings.editProduct, style: AppTypography.titleMedium),
-              const SizedBox(height: 6),
-              Text(
-                widget.product.title,
-                style: AppTypography.bodyMedium
-                    .copyWith(color: AppColors.mutedText),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _titleController,
+                textCapitalization: TextCapitalization.sentences,
+                style: AppTypography.bodyLarge,
+                decoration: const InputDecoration(hintText: 'Название товара'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               // Photo picker
               GestureDetector(
                 onTap: _pickImage,
@@ -587,8 +591,11 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                 label: AppStrings.save,
                 isLoading: _isSaving,
                 onPressed: () async {
+                  final title = _titleController.text.trim();
+                  if (title.isEmpty) return;
                   setState(() => _isSaving = true);
                   final updated = widget.product.copyWith(
+                    title: title,
                     uvpPrice: _parse(_uvpController, widget.product.uvpPrice),
                     purchasePrice1:
                         _parse(_p1Controller, widget.product.purchasePrice1),

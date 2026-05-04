@@ -52,20 +52,23 @@ class ProductListTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      product.title,
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
-                            product.title,
-                            style: AppTypography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            product.category,
+                            style: AppTypography.overline,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Text(
                           AppFormatters.price(product.uvpPrice),
                           style: AppTypography.bodyMedium.copyWith(
@@ -75,11 +78,6 @@ class ProductListTile extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      product.category,
-                      style: AppTypography.overline,
                     ),
                   ],
                 ),
