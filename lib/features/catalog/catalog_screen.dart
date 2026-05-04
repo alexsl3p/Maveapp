@@ -9,6 +9,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/warehouse_provider.dart';
 import '../../data/models/product.dart';
 import '../../data/models/seller.dart';
 import '../../widgets/app_button.dart';
@@ -38,7 +39,7 @@ class _CatalogViewState extends State<_CatalogView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -96,6 +97,7 @@ class _CatalogViewState extends State<_CatalogView>
                   unselectedLabelColor: AppColors.mutedText,
                   tabs: const [
                     Tab(text: 'Товары'),
+                    Tab(text: 'Склад'),
                     Tab(text: 'Продавцы'),
                   ],
                 ),
@@ -107,6 +109,7 @@ class _CatalogViewState extends State<_CatalogView>
                 controller: _tabController,
                 children: const [
                   _ProductsTab(),
+                  _WarehouseTab(),
                   _SellersTab(),
                 ],
               ),
@@ -117,6 +120,8 @@ class _CatalogViewState extends State<_CatalogView>
     );
   }
 }
+
+// ─── Products Tab ────────────────────────────────────────────────────────────
 
 class _ProductsTab extends StatelessWidget {
   const _ProductsTab();
@@ -133,26 +138,136 @@ class _ProductsTab extends StatelessWidget {
           );
         }
 
+        return Column(
+          children: [
+            Expanded(
+              child: ReorderableListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                buildDefaultDragHandles: false,
+                itemCount: catalog.products.length,
+                itemBuilder: (context, index) {
+                  final product = catalog.products[index];
+                  return Row(
+                    key: ValueKey(product.id),
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 16),
+                          child: Icon(
+                            Icons.drag_handle_rounded,
+                            color: AppColors.mutedText,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ProductListTile(
+                          product: product,
+                          onTap: () => _showEditSheet(context, product, catalog),
+                          onToggleActive: (value) =>
+                              catalog.toggleActive(product.id!, value),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                onReorder: (oldIndex, newIndex) {
+                  if (newIndex > oldIndex) newIndex--;
+                  catalog.reorderProducts(oldIndex, newIndex);
+                },
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
+              child: AppPrimaryButton(
+                label: AppStrings.addProduct,
+                onPressed: () => _showAddSheet(context, catalog),
+                icon: Icons.add,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditSheet(BuildContext context, Product product, CatalogProvider catalog) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: catalog,
+        child: _ProductEditSheet(product: product),
+      ),
+    );
+  }
+
+  void _showAddSheet(BuildContext context, CatalogProvider catalog) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: catalog,
+        child: const _ProductAddSheet(),
+      ),
+    );
+  }
+}
+
+// ─── Warehouse Tab ────────────────────────────────────────────────────────────
+
+class _WarehouseTab extends StatelessWidget {
+  const _WarehouseTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer2<CatalogProvider, WarehouseProvider>(
+      builder: (context, catalog, warehouse, _) {
+        if (catalog.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentBrown),
+            ),
+          );
+        }
+
+        final products = catalog.products.where((p) => p.isActive).toList();
+
+        if (products.isEmpty) {
+          return Center(
+            child: Text(
+              'Нет активных товаров',
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.mutedText),
+            ),
+          );
+        }
+
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-          itemCount: catalog.products.length + 1,
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            MediaQuery.of(context).padding.bottom + 80,
+          ),
+          itemCount: products.length,
           itemBuilder: (context, index) {
-            if (index == catalog.products.length) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: AppPrimaryButton(
-                  label: AppStrings.addProduct,
-                  onPressed: () => _showAddSheet(context),
-                  icon: Icons.add,
-                ),
-              );
-            }
-            final product = catalog.products[index];
-            return ProductListTile(
+            final product = products[index];
+            final stock = warehouse.stockFor(product.id!);
+            return _WarehouseProductTile(
               product: product,
-              onTap: () => _showEditSheet(context, product),
-              onToggleActive: (value) =>
-                  catalog.toggleActive(product.id!, value),
+              stock: stock,
+              onTap: () => _showAddStockSheet(context, product, warehouse),
             );
           },
         );
@@ -160,32 +275,297 @@ class _ProductsTab extends StatelessWidget {
     );
   }
 
-  void _showEditSheet(BuildContext context, Product product) {
+  void _showAddStockSheet(
+    BuildContext context,
+    Product product,
+    WarehouseProvider warehouse,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<CatalogProvider>(),
-        child: _ProductEditSheet(product: product),
-      ),
-    );
-  }
-
-  void _showAddSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<CatalogProvider>(),
-        child: const _ProductAddSheet(),
+        value: warehouse,
+        child: _AddStockSheet(product: product),
       ),
     );
   }
 }
+
+class _WarehouseProductTile extends StatelessWidget {
+  final Product product;
+  final int stock;
+  final VoidCallback onTap;
+
+  const _WarehouseProductTile({
+    required this.product,
+    required this.stock,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ProductImageWidget(
+              imageUrl: product.imageUrl,
+              category: product.category,
+              title: product.title,
+              width: 44,
+              height: 44,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.title,
+                    style: AppTypography.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    product.category,
+                    style: AppTypography.bodySmall
+                        .copyWith(color: AppColors.mutedText),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$stock шт',
+                  style: AppTypography.titleSmall.copyWith(
+                    color: stock > 0 ? AppColors.success : AppColors.mutedText,
+                  ),
+                ),
+                Text(
+                  'на складе',
+                  style: AppTypography.overline.copyWith(fontSize: 9),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            const Icon(
+              Icons.add_circle_outline,
+              color: AppColors.accentBrown,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddStockSheet extends StatefulWidget {
+  final Product product;
+
+  const _AddStockSheet({required this.product});
+
+  @override
+  State<_AddStockSheet> createState() => _AddStockSheetState();
+}
+
+class _AddStockSheetState extends State<_AddStockSheet> {
+  int _tier = 1;
+  final _quantityController = TextEditingController(text: '1');
+  late TextEditingController _priceController;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _priceController = TextEditingController(
+      text: widget.product.purchasePrice1.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  void _onTierChanged(int tier) {
+    setState(() {
+      _tier = tier;
+      _priceController.text =
+          widget.product.purchasePriceForTier(tier).toStringAsFixed(2);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final bottomPadding = mq.viewInsets.bottom + mq.viewPadding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.lightCream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Добавить на склад', style: AppTypography.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                widget.product.title,
+                style: AppTypography.bodyMedium
+                    .copyWith(color: AppColors.mutedText),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 20),
+              Text('Закупочная цена', style: AppTypography.labelLarge),
+              const SizedBox(height: 10),
+              Row(
+                children: [1, 5, 10].map((tier) {
+                  final isSelected = _tier == tier;
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: tier != 10 ? 8 : 0),
+                      child: GestureDetector(
+                        onTap: () => _onTierChanged(tier),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.accentBrown
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            border: isSelected
+                                ? null
+                                : Border.all(
+                                    color: AppColors.divider, width: 0.5),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                widget.product.tierLabel(tier),
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: isSelected
+                                      ? AppColors.lightCream
+                                      : AppColors.deepText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                AppFormatters.price(
+                                    widget.product.purchasePriceForTier(tier)),
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: isSelected
+                                      ? AppColors.lightCream.withOpacity(0.8)
+                                      : AppColors.mutedText,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              _PriceField(
+                label: 'Цена закупки',
+                controller: _priceController,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 130,
+                    child: Text('Количество', style: AppTypography.bodyMedium),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _quantityController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.right,
+                      style: AppTypography.titleSmall,
+                      decoration: const InputDecoration(
+                        suffixText: ' шт',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              AppPrimaryButton(
+                label: 'Добавить',
+                isLoading: _isSaving,
+                onPressed: () async {
+                  final qty = int.tryParse(_quantityController.text) ?? 0;
+                  if (qty <= 0) return;
+                  final price = double.tryParse(
+                          _priceController.text.replaceAll(',', '.')) ??
+                      widget.product.purchasePriceForTier(_tier);
+                  setState(() => _isSaving = true);
+                  await context
+                      .read<WarehouseProvider>()
+                      .addStock(widget.product.id!, qty, _tier, price);
+                  if (mounted) Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Sellers Tab ─────────────────────────────────────────────────────────────
 
 class _SellersTab extends StatelessWidget {
   const _SellersTab();
@@ -212,7 +592,9 @@ class _SellersTab extends StatelessWidget {
             ),
             Padding(
               padding: EdgeInsets.fromLTRB(
-                20, 8, 20,
+                20,
+                8,
+                20,
                 MediaQuery.of(context).padding.bottom + 16,
               ),
               child: AppPrimaryButton(
@@ -398,6 +780,8 @@ class _AddSellerSheetState extends State<_AddSellerSheet> {
   }
 }
 
+// ─── Product Edit Sheet ───────────────────────────────────────────────────────
+
 class _ProductEditSheet extends StatefulWidget {
   final Product product;
 
@@ -503,7 +887,6 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
                 decoration: const InputDecoration(hintText: 'Название товара'),
               ),
               const SizedBox(height: 16),
-              // Photo picker
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
@@ -617,6 +1000,8 @@ class _ProductEditSheetState extends State<_ProductEditSheet> {
   }
 }
 
+// ─── Product Add Sheet ────────────────────────────────────────────────────────
+
 class _ProductAddSheet extends StatefulWidget {
   const _ProductAddSheet();
 
@@ -634,7 +1019,12 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
   String? _imagePath;
   bool _isSaving = false;
 
-  static const _categories = ['KOSMETIK', 'KÖRPER', 'INSTRUMENT', 'PROFESSIONAL'];
+  static const _categories = [
+    'KOSMETIK',
+    'KÖRPER',
+    'INSTRUMENT',
+    'PROFESSIONAL',
+  ];
 
   @override
   void dispose() {
@@ -701,7 +1091,6 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
               const SizedBox(height: 16),
               Text(AppStrings.addProduct, style: AppTypography.titleMedium),
               const SizedBox(height: 20),
-              // Photo picker
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
@@ -709,7 +1098,8 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.divider, width: 1.5),
+                    border:
+                        Border.all(color: AppColors.divider, width: 1.5),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(15),
@@ -721,8 +1111,8 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
                         else
                           Container(color: AppColors.surface),
                         Container(
-                          color: Colors.black.withOpacity(
-                              _imagePath != null ? 0.25 : 0.0),
+                          color: Colors.black
+                              .withOpacity(_imagePath != null ? 0.25 : 0.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -754,7 +1144,6 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Name field
               TextField(
                 controller: _titleController,
                 textCapitalization: TextCapitalization.sentences,
@@ -762,7 +1151,6 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
                 decoration: const InputDecoration(hintText: 'Название товара'),
               ),
               const SizedBox(height: 12),
-              // Category selector
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -824,6 +1212,8 @@ class _ProductAddSheetState extends State<_ProductAddSheet> {
   }
 }
 
+// ─── Shared Widgets ───────────────────────────────────────────────────────────
+
 class _PriceField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
@@ -841,7 +1231,8 @@ class _PriceField extends StatelessWidget {
         Expanded(
           child: TextField(
             controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
             textAlign: TextAlign.right,
             style: AppTypography.titleSmall,
             decoration: const InputDecoration(

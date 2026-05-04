@@ -31,6 +31,15 @@ class CatalogProvider extends ChangeNotifier {
     await load();
   }
 
+  Future<void> reorderProducts(int oldIndex, int newIndex) async {
+    final list = List<Product>.from(_products);
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    _products = list;
+    notifyListeners();
+    await _productRepo.updateSortOrders(list.map((p) => p.id!).toList());
+  }
+
   Future<void> toggleActive(int id, bool isActive) async {
     await _productRepo.setActive(id, isActive);
     _products = _products

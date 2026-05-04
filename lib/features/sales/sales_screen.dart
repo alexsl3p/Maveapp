@@ -5,6 +5,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../providers/warehouse_provider.dart';
 import '../../data/models/product.dart';
 import '../../data/models/seller.dart';
 import '../../core/utils/formatters.dart';
@@ -207,7 +208,10 @@ class _SalesView extends StatelessWidget {
         value: context.read<AppProvider>(),
         child: ChangeNotifierProvider.value(
           value: context.read<SalesProvider>(),
-          child: SaleBottomSheet(product: product),
+          child: ChangeNotifierProvider.value(
+            value: context.read<WarehouseProvider>(),
+            child: SaleBottomSheet(product: product),
+          ),
         ),
       ),
     );

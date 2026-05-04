@@ -6,7 +6,9 @@ import 'data/database/database_helper.dart';
 import 'data/repositories/product_repository.dart';
 import 'data/repositories/sale_repository.dart';
 import 'data/repositories/seller_repository.dart';
+import 'data/repositories/warehouse_repository.dart';
 import 'providers/app_provider.dart';
+import 'providers/warehouse_provider.dart';
 import 'providers/analytics_provider.dart';
 import 'providers/catalog_provider.dart';
 import 'providers/history_provider.dart';
@@ -22,6 +24,7 @@ class MaveApp extends StatelessWidget {
     final productRepo = ProductRepository(db);
     final sellerRepo = SellerRepository(db);
     final saleRepo = SaleRepository(db);
+    final warehouseRepo = WarehouseRepository(db);
 
     return MultiProvider(
       providers: [
@@ -39,6 +42,9 @@ class MaveApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => CatalogProvider(productRepo),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => WarehouseProvider(warehouseRepo),
         ),
       ],
       child: Consumer<AppProvider>(

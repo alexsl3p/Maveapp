@@ -7,6 +7,7 @@ import '../../providers/analytics_provider.dart';
 import '../../providers/history_provider.dart';
 import '../../providers/sales_provider.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/warehouse_provider.dart';
 import '../sales/sales_screen.dart';
 import '../history/history_screen.dart';
 import '../analytics/analytics_screen.dart';
@@ -51,6 +52,7 @@ class _MainScreenState extends State<MainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppProvider>().init();
       context.read<SalesProvider>().init();
+      context.read<WarehouseProvider>().load();
     });
   }
 

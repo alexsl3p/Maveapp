@@ -17,7 +17,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'mave_sales.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -52,9 +52,9 @@ class DatabaseHelper {
       CREATE TABLE sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
-        seller_id INTEGER NOT NULL,
+        seller_id INTEGER NOT NULL DEFAULT 0,
         product_title_snapshot TEXT NOT NULL,
-        seller_name_snapshot TEXT NOT NULL,
+        seller_name_snapshot TEXT NOT NULL DEFAULT '',
         purchase_price_snapshot REAL NOT NULL,
         sale_price_snapshot REAL NOT NULL,
         price_mode TEXT NOT NULL,
@@ -66,28 +66,43 @@ class DatabaseHelper {
         month_key TEXT NOT NULL,
         note TEXT,
         status TEXT NOT NULL DEFAULT 'active',
-        product_image_snapshot TEXT,
-        FOREIGN KEY (product_id) REFERENCES products (id),
-        FOREIGN KEY (seller_id) REFERENCES sellers (id)
+        product_image_snapshot TEXT
       )
     ''');
 
     await db.execute(
-      'CREATE INDEX idx_sales_month ON sales (month_key)',
-    );
+        'CREATE INDEX idx_sales_month ON sales (month_key)');
     await db.execute(
-      'CREATE INDEX idx_sales_seller ON sales (seller_id)',
-    );
+        'CREATE INDEX idx_sales_seller ON sales (seller_id)');
     await db.execute(
-      'CREATE INDEX idx_sales_product ON sales (product_id)',
-    );
+        'CREATE INDEX idx_sales_product ON sales (product_id)');
+
+    await _createWarehouseTable(db);
+  }
+
+  Future<void> _createWarehouseTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE warehouse_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        quantity_total INTEGER NOT NULL,
+        quantity_remaining INTEGER NOT NULL,
+        purchase_price REAL NOT NULL,
+        purchase_tier INTEGER NOT NULL,
+        purchased_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute(
+        'CREATE INDEX idx_wh_product ON warehouse_entries (product_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute(
-        'ALTER TABLE sales ADD COLUMN product_image_snapshot TEXT',
-      );
+          'ALTER TABLE sales ADD COLUMN product_image_snapshot TEXT');
+    }
+    if (oldVersion < 3) {
+      await _createWarehouseTable(db);
     }
   }
 

@@ -61,6 +61,16 @@ class ProductRepository {
     }
   }
 
+  Future<void> updateSortOrders(List<int> ids) async {
+    final db = await _db.database;
+    final batch = db.batch();
+    for (int i = 0; i < ids.length; i++) {
+      batch.update('products', {'sort_order': i},
+          where: 'id = ?', whereArgs: [ids[i]]);
+    }
+    await batch.commit(noResult: true);
+  }
+
   Future<List<String>> getCategories() async {
     final db = await _db.database;
     final rows = await db.rawQuery(
