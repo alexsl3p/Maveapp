@@ -8,11 +8,15 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/formatters.dart';
+import '../../providers/analytics_provider.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/history_provider.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/sales_provider.dart';
 import '../../providers/warehouse_provider.dart';
 import '../../data/models/product.dart';
 import '../../data/models/seller.dart';
+import '../../services/backup_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/product_image_widget.dart';
 import 'widgets/product_list_tile.dart';
@@ -49,6 +53,29 @@ class _CatalogViewState extends State<_CatalogView>
     super.dispose();
   }
 
+  void _showSettingsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: context.read<AppProvider>()),
+          ChangeNotifierProvider.value(value: context.read<SalesProvider>()),
+          ChangeNotifierProvider.value(value: context.read<HistoryProvider>()),
+          ChangeNotifierProvider.value(
+              value: context.read<AnalyticsProvider>()),
+          ChangeNotifierProvider.value(
+              value: context.read<CatalogProvider>()),
+          ChangeNotifierProvider.value(
+              value: context.read<WarehouseProvider>()),
+        ],
+        child: const _BackupSheet(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,10 +87,31 @@ class _CatalogViewState extends State<_CatalogView>
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Text(
-                AppStrings.catalogTitle,
-                style: AppTypography.displayMedium
-                    .copyWith(fontWeight: FontWeight.w600),
+              child: Row(
+                children: [
+                  Text(
+                    AppStrings.catalogTitle,
+                    style: AppTypography.displayMedium
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showSettingsSheet(context),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.settings_outlined,
+                        size: 18,
+                        color: AppColors.mutedText,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -1563,6 +1611,206 @@ class _PriceField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── Backup / Settings Sheet ──────────────────────────────────────────────────
+
+class _BackupSheet extends StatefulWidget {
+  const _BackupSheet();
+
+  @override
+  State<_BackupSheet> createState() => _BackupSheetState();
+}
+
+class _BackupSheetState extends State<_BackupSheet> {
+  bool _busy = false;
+
+  Future<void> _export() async {
+    setState(() => _busy = true);
+    await BackupService.exportBackup(context);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _import() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.lightCream,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title:
+            Text('Восстановить данные?', style: AppTypography.titleMedium),
+        content: Text(
+          'Все текущие данные будут заменены данными из файла резервной копии. Это действие необратимо.',
+          style:
+              AppTypography.bodyMedium.copyWith(color: AppColors.mutedText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Восстановить',
+                style:
+                    AppTypography.labelLarge.copyWith(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    final ok = await BackupService.importBackup(context);
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    if (ok) {
+      // Reload all providers with fresh data.
+      await Future.wait([
+        context.read<AppProvider>().init(),
+        context.read<SalesProvider>().init(),
+        context.read<HistoryProvider>().load(),
+        context.read<AnalyticsProvider>().load(),
+        context.read<CatalogProvider>().load(),
+        context.read<WarehouseProvider>().load(),
+      ]);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Данные восстановлены')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.lightCream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, mq.viewPadding.bottom + 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Резервная копия', style: AppTypography.titleMedium),
+          const SizedBox(height: 6),
+          Text(
+            'Все данные: товары, продажи, склад, продавцы.',
+            style:
+                AppTypography.bodySmall.copyWith(color: AppColors.mutedText),
+          ),
+          const SizedBox(height: 20),
+          _ActionTile(
+            icon: Icons.upload_outlined,
+            iconColor: AppColors.accentBrown,
+            title: 'Создать резервную копию',
+            subtitle: 'Сохранить файл .db через Поделиться',
+            onTap: _busy ? null : _export,
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.download_outlined,
+            iconColor: AppColors.success,
+            title: 'Восстановить из копии',
+            subtitle: 'Выбрать файл .db с этого устройства',
+            onTap: _busy ? null : _import,
+          ),
+          if (_busy) ...[
+            const SizedBox(height: 16),
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppColors.accentBrown),
+                strokeWidth: 2,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Opacity(
+        opacity: onTap == null ? 0.4 : 1.0,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: AppTypography.bodySmall
+                            .copyWith(color: AppColors.mutedText)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: AppColors.divider, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
